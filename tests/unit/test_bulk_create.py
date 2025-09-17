@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from chronos_mcp.exceptions import ChronosError
+
 # Import the actual function directly
 from chronos_mcp.server import bulk_create_events
 
@@ -31,11 +32,13 @@ class TestBulkCreateEvents:
 
         # Set up the global _managers dict
         _managers.clear()
-        _managers.update({
-            "bulk_manager": mock_bulk,
-            "event_manager": mock_event,
-            "logger": mock_logger
-        })
+        _managers.update(
+            {
+                "bulk_manager": mock_bulk,
+                "event_manager": mock_event,
+                "logger": mock_logger,
+            }
+        )
 
         try:
             yield {"event": mock_event, "bulk": mock_bulk, "logger": mock_logger}
@@ -77,12 +80,11 @@ class TestBulkCreateEvents:
 
         mock_result = BulkResult(total=3, successful=3, failed=0)
         for i in range(3):
-            mock_result.results.append(OperationResult(
-                index=i,
-                success=True,
-                uid=f"created-{i}",
-                duration_ms=0.1
-            ))
+            mock_result.results.append(
+                OperationResult(
+                    index=i, success=True, uid=f"created-{i}", duration_ms=0.1
+                )
+            )
 
         mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
@@ -126,18 +128,19 @@ class TestBulkCreateEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=2, successful=1, failed=1)
-        mock_result.results.append(OperationResult(
-            index=0,
-            success=True,
-            uid="valid-event-uid",
-            duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=1,
-            success=False,
-            error="Validation failed: Missing required field: summary",
-            duration_ms=0.0
-        ))
+        mock_result.results.append(
+            OperationResult(
+                index=0, success=True, uid="valid-event-uid", duration_ms=0.1
+            )
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=1,
+                success=False,
+                error="Validation failed: Missing required field: summary",
+                duration_ms=0.0,
+            )
+        )
 
         mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
@@ -161,15 +164,17 @@ class TestBulkCreateEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=3, successful=2, failed=1)
-        mock_result.results.append(OperationResult(
-            index=0, success=True, uid="uid-Event 1", duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=1, success=False, error="Creation failed", duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=2, success=True, uid="uid-Event 3", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-Event 1", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=1, success=False, error="Creation failed", duration_ms=0.1
+            )
+        )
+        mock_result.results.append(
+            OperationResult(index=2, success=True, uid="uid-Event 3", duration_ms=0.1)
+        )
 
         mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
@@ -200,12 +205,14 @@ class TestBulkCreateEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=3, successful=1, failed=1)
-        mock_result.results.append(OperationResult(
-            index=0, success=True, uid="uid-Event 1", duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=1, success=False, error="Creation failed", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-Event 1", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=1, success=False, error="Creation failed", duration_ms=0.1
+            )
+        )
         # In fail_fast mode, processing stops after first failure
 
         mock_managers["bulk"].bulk_create_events.return_value = mock_result
@@ -255,9 +262,9 @@ class TestBulkCreateEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=1, successful=1, failed=0)
-        mock_result.results.append(OperationResult(
-            index=0, success=True, uid="test-uid", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="test-uid", duration_ms=0.1)
+        )
 
         mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
@@ -292,9 +299,9 @@ class TestBulkCreateEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=1, successful=1, failed=0)
-        mock_result.results.append(OperationResult(
-            index=0, success=True, uid="test-uid", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="test-uid", duration_ms=0.1)
+        )
 
         mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
@@ -328,9 +335,9 @@ class TestBulkCreateEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=1, successful=1, failed=0)
-        mock_result.results.append(OperationResult(
-            index=0, success=True, uid="test-uid", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="test-uid", duration_ms=0.1)
+        )
 
         mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
@@ -363,9 +370,9 @@ class TestBulkCreateEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=1, successful=1, failed=0)
-        mock_result.results.append(OperationResult(
-            index=0, success=True, uid="test-uid", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="test-uid", duration_ms=0.1)
+        )
 
         mock_managers["bulk"].bulk_create_events.return_value = mock_result
 

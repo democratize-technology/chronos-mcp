@@ -342,16 +342,18 @@ class TestBulkDelete:
         # Mock successful event creation with varying response times
         def create_event_mock(*args, **kwargs):
             # Extract the event number from the summary
-            summary = kwargs.get('summary', args[1] if len(args) > 1 else '')
-            if summary and 'Event ' in summary:
-                event_num = summary.split('Event ')[1]
+            summary = kwargs.get("summary", args[1] if len(args) > 1 else "")
+            if summary and "Event " in summary:
+                event_num = summary.split("Event ")[1]
                 mock_event = Mock()
                 mock_event.uid = f"uid{event_num}"
                 return mock_event
             else:
                 # Fallback for any unexpected calls
                 mock_event = Mock()
-                mock_event.uid = f"uid_unknown_{len(mock_event_manager.create_event.call_args_list)}"
+                mock_event.uid = (
+                    f"uid_unknown_{len(mock_event_manager.create_event.call_args_list)}"
+                )
                 return mock_event
 
         mock_event_manager.create_event.side_effect = create_event_mock

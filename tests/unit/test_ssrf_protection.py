@@ -37,9 +37,10 @@ class TestSSRFProtection:
                 validator.validate_url(url)
 
             error_msg = str(exc_info.value)
-            assert "not allowed for security reasons" in error_msg or \
-                   "Unable to resolve hostname" in error_msg, \
-                   f"URL should be blocked for SSRF protection: {url}"
+            assert (
+                "not allowed for security reasons" in error_msg
+                or "Unable to resolve hostname" in error_msg
+            ), f"URL should be blocked for SSRF protection: {url}"
 
     def test_validate_url_blocks_ipv6_localhost(self):
         """Test that IPv6 localhost addresses are blocked"""
@@ -65,12 +66,10 @@ class TestSSRFProtection:
             "https://10.0.0.1/caldav",
             "https://10.255.255.255/caldav",
             "https://10.1.2.3:8443/caldav",
-
             # Class B private (172.16.0.0/12)
             "https://172.16.0.1/caldav",
             "https://172.31.255.255/caldav",
             "https://172.20.10.5:8443/caldav",
-
             # Class C private (192.168.0.0/16)
             "https://192.168.0.1/caldav",
             "https://192.168.1.1/caldav",
@@ -83,9 +82,10 @@ class TestSSRFProtection:
                 validator.validate_url(url)
 
             error_msg = str(exc_info.value)
-            assert "private or internal IP address" in error_msg or \
-                   "Unable to resolve hostname" in error_msg, \
-                   f"Private IP should be blocked: {url}"
+            assert (
+                "private or internal IP address" in error_msg
+                or "Unable to resolve hostname" in error_msg
+            ), f"Private IP should be blocked: {url}"
 
     def test_validate_url_blocks_link_local_addresses(self):
         """Test that link-local addresses are blocked"""
@@ -102,10 +102,11 @@ class TestSSRFProtection:
                 validator.validate_url(url)
 
             error_msg = str(exc_info.value)
-            assert "private or internal IP address" in error_msg or \
-                   "restricted IP address" in error_msg or \
-                   "Unable to resolve hostname" in error_msg, \
-                   f"Link-local address should be blocked: {url}"
+            assert (
+                "private or internal IP address" in error_msg
+                or "restricted IP address" in error_msg
+                or "Unable to resolve hostname" in error_msg
+            ), f"Link-local address should be blocked: {url}"
 
     def test_validate_url_blocks_zero_address(self):
         """Test that 0.0.0.0 is blocked"""
@@ -114,8 +115,10 @@ class TestSSRFProtection:
         with pytest.raises(ValidationError):
             validator.validate_url("https://0.0.0.0/caldav")
 
-    @patch('socket.getaddrinfo')
-    def test_validate_url_blocks_domains_resolving_to_private_ips(self, mock_getaddrinfo):
+    @patch("socket.getaddrinfo")
+    def test_validate_url_blocks_domains_resolving_to_private_ips(
+        self, mock_getaddrinfo
+    ):
         """Test that domains resolving to private IPs are blocked"""
         validator = InputValidator()
 
@@ -129,7 +132,7 @@ class TestSSRFProtection:
 
         for domain, private_ip in test_cases:
             mock_getaddrinfo.return_value = [
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', (private_ip, 443))
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", (private_ip, 443))
             ]
 
             url = f"https://{domain}/caldav"
@@ -137,11 +140,12 @@ class TestSSRFProtection:
                 validator.validate_url(url)
 
             error_msg = str(exc_info.value)
-            assert "private or internal IP address" in error_msg or \
-                   "restricted IP address" in error_msg, \
-                   f"Domain resolving to {private_ip} should be blocked: {url}"
+            assert (
+                "private or internal IP address" in error_msg
+                or "restricted IP address" in error_msg
+            ), f"Domain resolving to {private_ip} should be blocked: {url}"
 
-    @patch('socket.getaddrinfo')
+    @patch("socket.getaddrinfo")
     def test_validate_url_allows_public_ips(self, mock_getaddrinfo):
         """Test that public IP addresses are allowed"""
         validator = InputValidator()
@@ -155,7 +159,7 @@ class TestSSRFProtection:
 
         for domain, public_ip in public_test_cases:
             mock_getaddrinfo.return_value = [
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', (public_ip, 443))
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", (public_ip, 443))
             ]
 
             url = f"https://{domain}/caldav"
@@ -184,15 +188,21 @@ class TestSSRFProtection:
             with pytest.raises(ValidationError):
                 validator.validate_url(url, allow_private_ips=False)
 
-    @patch('socket.getaddrinfo')
+    @patch("socket.getaddrinfo")
     def test_validate_url_dns_rebinding_protection(self, mock_getaddrinfo):
         """Test protection against DNS rebinding attacks"""
         validator = InputValidator()
 
         # Simulate DNS rebinding - domain resolves to multiple IPs including private
         mock_getaddrinfo.return_value = [
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ("8.8.8.8", 443)),  # Public
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ("192.168.1.1", 443)),  # Private
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443)),  # Public
+            (
+                socket.AF_INET,
+                socket.SOCK_STREAM,
+                6,
+                "",
+                ("192.168.1.1", 443),
+            ),  # Private
         ]
 
         url = "https://evil.example.com/caldav"
@@ -200,10 +210,11 @@ class TestSSRFProtection:
             validator.validate_url(url)
 
         error_msg = str(exc_info.value)
-        assert "private or internal IP address" in error_msg, \
-               "Should block domain with mixed public/private IPs"
+        assert (
+            "private or internal IP address" in error_msg
+        ), "Should block domain with mixed public/private IPs"
 
-    @patch('socket.getaddrinfo')
+    @patch("socket.getaddrinfo")
     def test_validate_url_handles_dns_resolution_failures(self, mock_getaddrinfo):
         """Test handling of DNS resolution failures"""
         validator = InputValidator()
@@ -216,8 +227,9 @@ class TestSSRFProtection:
             validator.validate_url(url)
 
         error_msg = str(exc_info.value)
-        assert "Unable to resolve hostname" in error_msg, \
-               "Should handle DNS resolution failure gracefully"
+        assert (
+            "Unable to resolve hostname" in error_msg
+        ), "Should handle DNS resolution failure gracefully"
 
     def test_validate_url_enforces_https(self):
         """Test that only HTTPS URLs are allowed"""
@@ -237,9 +249,10 @@ class TestSSRFProtection:
                 validator.validate_url(url)
 
             error_msg = str(exc_info.value)
-            assert "Invalid URL format" in error_msg or \
-                   "Must be a valid HTTPS URL" in error_msg, \
-                   f"Non-HTTPS protocol should be rejected: {url}"
+            assert (
+                "Invalid URL format" in error_msg
+                or "Must be a valid HTTPS URL" in error_msg
+            ), f"Non-HTTPS protocol should be rejected: {url}"
 
     def test_validate_url_length_limits(self):
         """Test URL length validation"""
@@ -290,14 +303,18 @@ class TestSSRFProtection:
         ]
 
         for ip in invalid_ips:
-            assert validator.is_private_ip(ip), f"Should treat invalid IP {ip} as suspicious"
+            assert validator.is_private_ip(
+                ip
+            ), f"Should treat invalid IP {ip} as suspicious"
 
     def test_validate_url_field_name_in_errors(self):
         """Test that custom field names appear in error messages"""
         validator = InputValidator()
 
         with pytest.raises(ValidationError) as exc_info:
-            validator.validate_url("https://127.0.0.1/caldav", field_name="caldav_server")
+            validator.validate_url(
+                "https://127.0.0.1/caldav", field_name="caldav_server"
+            )
 
         error_msg = str(exc_info.value)
         assert "caldav_server" in error_msg, "Custom field name should appear in error"
@@ -317,14 +334,16 @@ class TestSSRFProtection:
         validator = InputValidator()
 
         # Leading/trailing whitespace should be stripped
-        result = validator.validate_url("  https://example.com/caldav  ", allow_private_ips=True)
+        result = validator.validate_url(
+            "  https://example.com/caldav  ", allow_private_ips=True
+        )
         assert result == "https://example.com/caldav"
 
         # Whitespace in URL should fail validation
         with pytest.raises(ValidationError):
             validator.validate_url("https://example .com/caldav")
 
-    @patch('socket.getaddrinfo')
+    @patch("socket.getaddrinfo")
     def test_validate_url_ipv6_private_ranges(self, mock_getaddrinfo):
         """Test that private IPv6 ranges are blocked"""
         validator = InputValidator()
@@ -339,7 +358,7 @@ class TestSSRFProtection:
 
         for ipv6_addr, description in test_cases:
             mock_getaddrinfo.return_value = [
-                (socket.AF_INET6, socket.SOCK_STREAM, 6, '', (ipv6_addr, 443, 0, 0))
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", (ipv6_addr, 443, 0, 0))
             ]
 
             url = "https://ipv6.example.com/caldav"
@@ -347,9 +366,10 @@ class TestSSRFProtection:
                 validator.validate_url(url)
 
             error_msg = str(exc_info.value)
-            assert "private or internal IP address" in error_msg or \
-                   "restricted IP address" in error_msg, \
-                   f"{description} should be blocked: {ipv6_addr}"
+            assert (
+                "private or internal IP address" in error_msg
+                or "restricted IP address" in error_msg
+            ), f"{description} should be blocked: {ipv6_addr}"
 
     def test_validate_url_special_case_addresses(self):
         """Test that special case addresses are handled correctly"""
@@ -386,7 +406,9 @@ class TestBackwardCompatibility:
             validator.validate_url("https://192.168.1.1/caldav")
 
         # But can be disabled for backward compatibility
-        result = validator.validate_url("https://192.168.1.1/caldav", allow_private_ips=True)
+        result = validator.validate_url(
+            "https://192.168.1.1/caldav", allow_private_ips=True
+        )
         assert result == "https://192.168.1.1/caldav"
 
     def test_validate_url_optional_parameters(self):
@@ -406,14 +428,14 @@ class TestBackwardCompatibility:
 class TestRealWorldScenarios:
     """Test real-world CalDAV server URLs and SSRF attack vectors"""
 
-    @patch('socket.getaddrinfo')
+    @patch("socket.getaddrinfo")
     def test_common_caldav_servers_allowed(self, mock_getaddrinfo):
         """Test that common CalDAV servers are allowed"""
         validator = InputValidator()
 
         # Mock public IP resolution
         mock_getaddrinfo.return_value = [
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ("93.184.216.34", 443))
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
         ]
 
         caldav_urls = [
@@ -429,7 +451,7 @@ class TestRealWorldScenarios:
             result = validator.validate_url(url)
             assert result == url, f"Common CalDAV URL should be allowed: {url}"
 
-    @patch('socket.getaddrinfo')
+    @patch("socket.getaddrinfo")
     def test_ssrf_attack_vectors_blocked(self, mock_getaddrinfo):
         """Test that common SSRF attack vectors are blocked"""
         validator = InputValidator()
@@ -437,25 +459,29 @@ class TestRealWorldScenarios:
         # Test various SSRF attack patterns
         attack_vectors = [
             # Direct private IPs
-            ("https://169.254.169.254/latest/meta-data/", "169.254.169.254", "AWS metadata"),
+            (
+                "https://169.254.169.254/latest/meta-data/",
+                "169.254.169.254",
+                "AWS metadata",
+            ),
             ("https://metadata.google.internal/", "169.254.169.254", "GCP metadata"),
-
             # Encoded variations (should be caught by pattern validation)
             # These won't match our HTTPS pattern anyway
         ]
 
         for url, ip, description in attack_vectors:
             mock_getaddrinfo.return_value = [
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, 443))
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 443))
             ]
 
             with pytest.raises(ValidationError) as exc_info:
                 validator.validate_url(url)
 
             error_msg = str(exc_info.value)
-            assert "not allowed for security reasons" in error_msg or \
-                   "Unable to resolve hostname" in error_msg, \
-                   f"SSRF vector should be blocked: {description}"
+            assert (
+                "not allowed for security reasons" in error_msg
+                or "Unable to resolve hostname" in error_msg
+            ), f"SSRF vector should be blocked: {description}"
 
     def test_local_development_with_flag(self):
         """Test that local development can still work with explicit flag"""

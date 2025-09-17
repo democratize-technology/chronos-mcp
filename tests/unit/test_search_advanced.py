@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from chronos_mcp.models import Event
+
 # Import the actual function directly
 from chronos_mcp.server import search_events
 
@@ -30,14 +31,20 @@ class TestSearchEvents:
 
         # Set up the global _managers dict
         _managers.clear()
-        _managers.update({
-            "calendar_manager": mock_calendar,
-            "event_manager": mock_event,
-            "logger": mock_logger
-        })
+        _managers.update(
+            {
+                "calendar_manager": mock_calendar,
+                "event_manager": mock_event,
+                "logger": mock_logger,
+            }
+        )
 
         try:
-            yield {"calendar": mock_calendar, "event": mock_event, "logger": mock_logger}
+            yield {
+                "calendar": mock_calendar,
+                "event": mock_event,
+                "logger": mock_logger,
+            }
         finally:
             # Restore original state
             _managers.clear()
@@ -143,7 +150,9 @@ class TestSearchEvents:
         )
 
         assert result["success"] is True
-        assert len(result["matches"]) == 2  # Both "Team Meeting" and "Zoom Meeting" match
+        assert (
+            len(result["matches"]) == 2
+        )  # Both "Team Meeting" and "Zoom Meeting" match
         # Check that both events with "Meeting" are found
         found_uids = {match["uid"] for match in result["matches"]}
         assert "evt-1" in found_uids  # "Team Meeting - Project Review"

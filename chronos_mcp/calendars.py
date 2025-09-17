@@ -9,9 +9,13 @@ import caldav
 from caldav import Calendar as CalDAVCalendar
 
 from .accounts import AccountManager
-from .exceptions import (AccountNotFoundError, CalendarCreationError,
-                         CalendarDeletionError, CalendarNotFoundError,
-                         ErrorHandler)
+from .exceptions import (
+    AccountNotFoundError,
+    CalendarCreationError,
+    CalendarDeletionError,
+    CalendarNotFoundError,
+    ErrorHandler,
+)
 from .logging_config import setup_logging
 from .models import Calendar
 

@@ -6,8 +6,11 @@ from typing import Any, Dict, Optional
 
 from pydantic import Field
 
-from ..exceptions import (AccountAlreadyExistsError, AccountNotFoundError,
-                          ValidationError)
+from ..exceptions import (
+    AccountAlreadyExistsError,
+    AccountNotFoundError,
+    ValidationError,
+)
 from ..models import Account
 from ..rate_limiter import rate_limit
 from ..validation import InputValidator
@@ -30,7 +33,7 @@ async def add_account(
     ),
     allow_local: bool = Field(
         False,
-        description="Allow localhost/private IPs (WARNING: only for development/testing)"
+        description="Allow localhost/private IPs (WARNING: only for development/testing)",
     ),
     request_id: str = None,
 ) -> Dict[str, Any]:
@@ -42,7 +45,9 @@ async def add_account(
     """
     # Validate inputs before creating account
     # SSRF protection is enabled by default (allow_private_ips defaults to False)
-    url = InputValidator.validate_url(url, allow_private_ips=allow_local, field_name="url")
+    url = InputValidator.validate_url(
+        url, allow_private_ips=allow_local, field_name="url"
+    )
 
     alias = InputValidator.validate_text_field(alias, "alias", required=True)
     username = InputValidator.validate_text_field(username, "username", required=True)

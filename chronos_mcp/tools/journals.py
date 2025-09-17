@@ -7,8 +7,13 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import Field
 
-from ..exceptions import (CalendarNotFoundError, ChronosError, ErrorSanitizer,
-                          EventNotFoundError, ValidationError)
+from ..exceptions import (
+    CalendarNotFoundError,
+    ChronosError,
+    ErrorSanitizer,
+    EventNotFoundError,
+    ValidationError,
+)
 from ..logging_config import setup_logging
 from ..rate_limiter import rate_limit
 from ..utils import parse_datetime
@@ -211,7 +216,6 @@ async def list_journals(
 
 
 @handle_tool_errors
-@handle_tool_errors
 @rate_limit("journals")
 async def update_journal(
     calendar_uid: str = Field(..., description="Calendar UID"),
@@ -261,7 +265,6 @@ async def update_journal(
     )
 
 
-@handle_tool_errors
 @handle_tool_errors
 @rate_limit("journals")
 async def delete_journal(

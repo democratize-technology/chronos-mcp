@@ -533,6 +533,7 @@ class InputValidator:
 
         # Handle FieldInfo objects from Pydantic Field defaults
         from pydantic.fields import FieldInfo
+
         if isinstance(allow_private_ips, FieldInfo):
             allow_private_ips = allow_private_ips.default
 
@@ -546,7 +547,9 @@ class InputValidator:
             hostname = parsed.hostname
 
             if not hostname:
-                raise ValidationError(f"Invalid URL format for {field_name}: no hostname found")
+                raise ValidationError(
+                    f"Invalid URL format for {field_name}: no hostname found"
+                )
 
             # Check against blocked hostnames (case-insensitive)
             if hostname.lower() in [h.lower() for h in cls.BLOCKED_HOSTNAMES]:

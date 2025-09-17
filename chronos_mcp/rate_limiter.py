@@ -78,7 +78,7 @@ class TokenBucket:
                 tokens_needed = tokens - self.tokens
                 # If refill rate is 0, tokens will never refill
                 if self.refill_rate <= 0:
-                    wait_time = float('inf')
+                    wait_time = float("inf")
                 else:
                     wait_time = tokens_needed / self.refill_rate
                 return False, wait_time

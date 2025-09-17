@@ -7,9 +7,14 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import Field
 
-from ..exceptions import (CalendarNotFoundError, ChronosError, ErrorSanitizer,
-                          EventCreationError, EventNotFoundError,
-                          ValidationError)
+from ..exceptions import (
+    CalendarNotFoundError,
+    ChronosError,
+    ErrorSanitizer,
+    EventCreationError,
+    EventNotFoundError,
+    ValidationError,
+)
 from ..logging_config import setup_logging
 from ..models import TaskStatus
 from ..rate_limiter import rate_limit
@@ -271,7 +276,6 @@ async def list_tasks(
 
 
 @handle_tool_errors
-@handle_tool_errors
 @rate_limit("tasks")
 async def update_task(
     calendar_uid: str = Field(..., description="Calendar UID"),
@@ -365,7 +369,6 @@ async def update_task(
     )
 
 
-@handle_tool_errors
 @handle_tool_errors
 @rate_limit("tasks")
 async def delete_task(

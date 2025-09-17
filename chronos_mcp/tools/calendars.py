@@ -7,8 +7,12 @@ from typing import Any, Dict, Optional
 
 from pydantic import Field
 
-from ..exceptions import (CalendarNotFoundError, ChronosError, ErrorSanitizer,
-                          ValidationError)
+from ..exceptions import (
+    CalendarNotFoundError,
+    ChronosError,
+    ErrorSanitizer,
+    ValidationError,
+)
 from ..logging_config import setup_logging
 from ..rate_limiter import rate_limit
 from ..validation import InputValidator
@@ -91,7 +95,6 @@ async def create_calendar(
         return {"success": False, "error": "Failed to create calendar"}
 
 
-@handle_tool_errors
 @handle_tool_errors
 @rate_limit("calendars")
 async def delete_calendar(

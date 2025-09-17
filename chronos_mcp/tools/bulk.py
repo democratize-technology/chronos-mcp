@@ -229,7 +229,6 @@ async def bulk_create_events(
 
 
 @handle_tool_errors
-@handle_tool_errors
 @rate_limit("bulk")
 async def bulk_delete_events(
     calendar_uid: str = Field(..., description="Calendar UID"),
@@ -288,7 +287,6 @@ async def bulk_delete_events(
     )
 
 
-@handle_tool_errors
 @handle_tool_errors
 @rate_limit("bulk")
 async def bulk_create_tasks(
@@ -359,7 +357,6 @@ async def bulk_create_tasks(
 
 
 @handle_tool_errors
-@handle_tool_errors
 @rate_limit("bulk")
 async def bulk_delete_tasks(
     calendar_uid: str = Field(..., description="Calendar UID"),
@@ -410,7 +407,6 @@ async def bulk_delete_tasks(
     )
 
 
-@handle_tool_errors
 @handle_tool_errors
 @rate_limit("bulk")
 async def bulk_create_journals(
@@ -480,7 +476,6 @@ async def bulk_create_journals(
     )
 
 
-@handle_tool_errors
 @handle_tool_errors
 @rate_limit("bulk")
 async def bulk_delete_journals(

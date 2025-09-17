@@ -188,7 +188,9 @@ class TestAccountManager:
             with pytest.raises(AccountConnectionError) as exc_info:
                 mgr.connect_account("test_account")
             # Check that the error details contain the circuit breaker message
-            assert "Circuit breaker is OPEN" in exc_info.value.details.get("original_error", "")
+            assert "Circuit breaker is OPEN" in exc_info.value.details.get(
+                "original_error", ""
+            )
 
     def test_connection_health_tracking(self, mock_config_manager, sample_account):
         """Test connection health metrics are tracked"""

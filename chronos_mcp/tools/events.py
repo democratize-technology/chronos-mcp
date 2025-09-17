@@ -9,10 +9,16 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import Field
 
-from ..exceptions import (AttendeeValidationError, CalendarNotFoundError,
-                          ChronosError, DateTimeValidationError,
-                          ErrorSanitizer, EventCreationError,
-                          EventNotFoundError, ValidationError)
+from ..exceptions import (
+    AttendeeValidationError,
+    CalendarNotFoundError,
+    ChronosError,
+    DateTimeValidationError,
+    ErrorSanitizer,
+    EventCreationError,
+    EventNotFoundError,
+    ValidationError,
+)
 from ..logging_config import setup_logging
 from ..rate_limiter import rate_limit
 from ..rrule import RRuleValidator

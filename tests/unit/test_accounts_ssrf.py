@@ -17,15 +17,15 @@ class TestAccountsSSRFProtection:
         """Test that add_account blocks private IPs by default"""
 
         # Directly set managers in the accounts module
-        accounts._managers['config_manager'] = MagicMock()
-        accounts._managers['account_manager'] = MagicMock()
+        accounts._managers["config_manager"] = MagicMock()
+        accounts._managers["account_manager"] = MagicMock()
 
         # Try to add account with localhost URL
         result = await accounts.add_account(
             alias="local-test",
             url="https://localhost:8443/caldav",
             username="user",
-            password="pass"
+            password="pass",
         )
 
         # The decorator catches ValidationError and returns error response
@@ -37,7 +37,7 @@ class TestAccountsSSRFProtection:
             alias="private-test",
             url="https://192.168.1.100/caldav",
             username="user",
-            password="pass"
+            password="pass",
         )
 
         assert result["success"] is False
@@ -52,19 +52,19 @@ class TestAccountsSSRFProtection:
         mock_account_manager = MagicMock()
         mock_account_manager.test_account.return_value = {
             "connected": True,
-            "calendars": []
+            "calendars": [],
         }
 
-        accounts._managers['config_manager'] = mock_config_manager
-        accounts._managers['account_manager'] = mock_account_manager
+        accounts._managers["config_manager"] = mock_config_manager
+        accounts._managers["account_manager"] = mock_account_manager
 
         # Should work with allow_local=True
         result = await accounts.add_account(
-                alias="local-dev",
-                url="https://localhost:8443/caldav",
-                username="user",
-                password="pass",
-            allow_local=True  # Explicitly allow local IPs
+            alias="local-dev",
+            url="https://localhost:8443/caldav",
+            username="user",
+            password="pass",
+            allow_local=True,  # Explicitly allow local IPs
         )
 
         assert result["success"] is True
@@ -82,24 +82,22 @@ class TestAccountsSSRFProtection:
         mock_account_manager = MagicMock()
         mock_account_manager.test_account.return_value = {
             "connected": True,
-            "calendars": ["Calendar1"]
+            "calendars": ["Calendar1"],
         }
 
-        accounts._managers['config_manager'] = mock_config_manager
-        accounts._managers['account_manager'] = mock_account_manager
+        accounts._managers["config_manager"] = mock_config_manager
+        accounts._managers["account_manager"] = mock_account_manager
 
         # Mock DNS resolution to return public IP
-        with patch('socket.getaddrinfo') as mock_getaddrinfo:
+        with patch("socket.getaddrinfo") as mock_getaddrinfo:
             # Mock public IP resolution
-            mock_getaddrinfo.return_value = [
-                (2, 1, 6, '', ("93.184.216.34", 443))
-            ]
+            mock_getaddrinfo.return_value = [(2, 1, 6, "", ("93.184.216.34", 443))]
 
             result = await accounts.add_account(
                 alias="public-caldav",
                 url="https://caldav.example.com/dav",
                 username="user",
-                password="pass"
+                password="pass",
             )
 
             assert result["success"] is True
@@ -110,15 +108,12 @@ class TestAccountsSSRFProtection:
     async def test_add_account_validates_url_format(self):
         """Test that add_account validates URL format"""
 
-        accounts._managers['config_manager'] = MagicMock()
-        accounts._managers['account_manager'] = MagicMock()
+        accounts._managers["config_manager"] = MagicMock()
+        accounts._managers["account_manager"] = MagicMock()
 
         # Invalid URL format
         result = await accounts.add_account(
-            alias="bad-url",
-            url="not-a-url",
-            username="user",
-            password="pass"
+            alias="bad-url", url="not-a-url", username="user", password="pass"
         )
 
         assert result["success"] is False
@@ -129,9 +124,11 @@ class TestAccountsSSRFProtection:
             alias="http-url",
             url="http://example.com/caldav",
             username="user",
-            password="pass"
+            password="pass",
         )
 
         assert result["success"] is False
-        assert "Invalid URL format" in result["error"] or \
-               "Must be a valid HTTPS URL" in result["error"]
+        assert (
+            "Invalid URL format" in result["error"]
+            or "Must be a valid HTTPS URL" in result["error"]
+        )

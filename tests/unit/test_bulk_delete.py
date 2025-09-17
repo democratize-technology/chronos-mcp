@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from chronos_mcp.exceptions import EventNotFoundError
+
 # Import the actual function directly
 from chronos_mcp.server import bulk_delete_events
 
@@ -29,11 +30,13 @@ class TestBulkDeleteEvents:
 
         # Set up the global _managers dict
         _managers.clear()
-        _managers.update({
-            "bulk_manager": mock_bulk,
-            "event_manager": mock_event,
-            "logger": mock_logger
-        })
+        _managers.update(
+            {
+                "bulk_manager": mock_bulk,
+                "event_manager": mock_event,
+                "logger": mock_logger,
+            }
+        )
 
         try:
             yield {"event": mock_event, "bulk": mock_bulk, "logger": mock_logger}
@@ -55,9 +58,11 @@ class TestBulkDeleteEvents:
 
         mock_result = BulkResult(total=5, successful=5, failed=0)
         for i in range(5):
-            mock_result.results.append(OperationResult(
-                index=i, success=True, uid=f"uid-{i+1}", duration_ms=0.1
-            ))
+            mock_result.results.append(
+                OperationResult(
+                    index=i, success=True, uid=f"uid-{i+1}", duration_ms=0.1
+                )
+            )
 
         mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
@@ -90,21 +95,31 @@ class TestBulkDeleteEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=5, successful=3, failed=2)
-        mock_result.results.append(OperationResult(
-            index=0, success=True, uid="uid-1", duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=1, success=False, error="EventNotFoundError: Event not found", duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=2, success=True, uid="uid-3", duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=3, success=False, error="EventNotFoundError: Event not found", duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=4, success=True, uid="uid-5", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-1", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=1,
+                success=False,
+                error="EventNotFoundError: Event not found",
+                duration_ms=0.1,
+            )
+        )
+        mock_result.results.append(
+            OperationResult(index=2, success=True, uid="uid-3", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=3,
+                success=False,
+                error="EventNotFoundError: Event not found",
+                duration_ms=0.1,
+            )
+        )
+        mock_result.results.append(
+            OperationResult(index=4, success=True, uid="uid-5", duration_ms=0.1)
+        )
 
         mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
@@ -133,15 +148,20 @@ class TestBulkDeleteEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=5, successful=2, failed=1)
-        mock_result.results.append(OperationResult(
-            index=0, success=True, uid="uid-1", duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=1, success=True, uid="uid-2", duration_ms=0.1
-        ))
-        mock_result.results.append(OperationResult(
-            index=2, success=False, error="EventNotFoundError: Event not found", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-1", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(index=1, success=True, uid="uid-2", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=2,
+                success=False,
+                error="EventNotFoundError: Event not found",
+                duration_ms=0.1,
+            )
+        )
         # In fail_fast mode, processing stops after first failure
 
         mock_managers["bulk"].bulk_delete_events.return_value = mock_result
@@ -179,6 +199,7 @@ class TestBulkDeleteEvents:
         """Test empty UID list"""
         # Mock empty result
         from chronos_mcp.bulk import BulkResult
+
         mock_result = BulkResult(total=0, successful=0, failed=0)
         mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
@@ -200,9 +221,9 @@ class TestBulkDeleteEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=1, successful=1, failed=0)
-        mock_result.results.append(OperationResult(
-            index=0, success=True, uid="uid-1", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-1", duration_ms=0.1)
+        )
         mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Direct function call
@@ -242,9 +263,11 @@ class TestBulkDeleteEvents:
         from chronos_mcp.bulk import BulkResult, OperationResult
 
         mock_result = BulkResult(total=1, successful=0, failed=1)
-        mock_result.results.append(OperationResult(
-            index=0, success=False, error="Network error", duration_ms=0.1
-        ))
+        mock_result.results.append(
+            OperationResult(
+                index=0, success=False, error="Network error", duration_ms=0.1
+            )
+        )
         mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Direct function call
@@ -264,9 +287,14 @@ class TestBulkDeleteEvents:
 
         mock_result = BulkResult(total=3, successful=0, failed=3)
         for i in range(3):
-            mock_result.results.append(OperationResult(
-                index=i, success=False, error="EventNotFoundError: Event not found", duration_ms=0.1
-            ))
+            mock_result.results.append(
+                OperationResult(
+                    index=i,
+                    success=False,
+                    error="EventNotFoundError: Event not found",
+                    duration_ms=0.1,
+                )
+            )
         mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Direct function call
@@ -290,9 +318,11 @@ class TestBulkDeleteEvents:
 
         mock_result = BulkResult(total=5, successful=5, failed=0)
         for i in range(5):
-            mock_result.results.append(OperationResult(
-                index=i, success=True, uid=f"uid-{i+1}", duration_ms=0.1
-            ))
+            mock_result.results.append(
+                OperationResult(
+                    index=i, success=True, uid=f"uid-{i+1}", duration_ms=0.1
+                )
+            )
         mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Include duplicate UIDs

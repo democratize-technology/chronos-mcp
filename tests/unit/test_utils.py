@@ -7,8 +7,12 @@ from datetime import date, datetime, timezone
 import pytest
 import pytz
 
-from chronos_mcp.utils import (create_ical_event, datetime_to_ical,
-                               ical_to_datetime, parse_datetime)
+from chronos_mcp.utils import (
+    create_ical_event,
+    datetime_to_ical,
+    ical_to_datetime,
+    parse_datetime,
+)
 
 
 class TestParseDatetime:
