@@ -42,9 +42,9 @@ async def create_task(
         None, description="List of related component UIDs"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create a new task"""
-    request_id = str(uuid.uuid4())
 
     # Handle type conversion for parameters that might come as strings from MCP
     if priority is not None:
@@ -181,9 +181,9 @@ async def list_tasks(
         description="Filter by status (NEEDS-ACTION, IN-PROCESS, COMPLETED, CANCELLED)",
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """List tasks in a calendar"""
-    request_id = str(uuid.uuid4())
 
     try:
         # Parse status filter if provided

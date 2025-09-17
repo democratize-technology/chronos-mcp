@@ -35,9 +35,9 @@ async def create_journal(
         None, description="List of related component UIDs"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create a new journal entry"""
-    request_id = str(uuid.uuid4())
 
     try:
         # Validate and sanitize text inputs
@@ -125,9 +125,9 @@ async def list_journals(
     limit: Optional[Union[int, str]] = Field(
         50, description="Maximum number of journals to return"
     ),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """List journal entries in a calendar"""
-    request_id = str(uuid.uuid4())
 
     # Handle type conversion for limit parameter
     if limit is not None:

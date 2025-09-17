@@ -52,6 +52,7 @@ async def create_event(
         None, description="List of related component UIDs"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create a new calendar event"""
     request_id = str(uuid.uuid4())
@@ -218,9 +219,9 @@ async def get_events_range(
     start_date: str = Field(..., description="Start date (ISO format)"),
     end_date: str = Field(..., description="End date (ISO format)"),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Get events within a date range"""
-    request_id = str(uuid.uuid4())
 
     try:
         start_dt = parse_datetime(start_date)
@@ -313,9 +314,9 @@ async def delete_event(
     calendar_uid: str = Field(..., description="Calendar UID"),
     event_uid: str = Field(..., description="Event UID to delete"),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Delete a calendar event"""
-    request_id = str(uuid.uuid4())
 
     try:
         _managers["event_manager"].delete_event(
@@ -409,9 +410,9 @@ async def update_event(
         None, description="JSON string of attendees list"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Update an existing calendar event. Only provided fields will be updated."""
-    request_id = str(uuid.uuid4())
 
     try:
         start_dt = parse_datetime(start) if start else None
@@ -477,9 +478,9 @@ async def create_recurring_event(
         None, description="JSON string of attendees list"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create a recurring event with validation."""
-    request_id = str(uuid.uuid4())
 
     try:
         duration_minutes = int(duration_minutes)
@@ -546,9 +547,9 @@ async def search_events(
     calendar_uid: Optional[str] = Field(None, description="Calendar UID to search in"),
     max_results: int = Field(50, description="Maximum number of results"),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Search for events across calendars with advanced filtering"""
-    request_id = str(uuid.uuid4())
 
     try:
         # Validate query length

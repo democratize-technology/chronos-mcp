@@ -81,10 +81,9 @@ async def bulk_create_events(
         True, description="Validate events before creation"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create multiple events in bulk"""
-    request_id = str(uuid.uuid4())
-
     # Ensure managers are available for backwards compatibility with tests
     _ensure_managers_initialized()
 
