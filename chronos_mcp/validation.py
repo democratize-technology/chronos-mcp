@@ -1,9 +1,27 @@
-"""Input validation for Chronos MCP."""
+"""Input validation for Chronos MCP with SSRF protection.
 
+This module provides comprehensive input validation for CalDAV operations,
+including enhanced URL validation with Server-Side Request Forgery (SSRF)
+protection. By default, URLs pointing to localhost, private IP ranges, and
+other potentially dangerous addresses are blocked to prevent SSRF attacks.
+
+Security Features:
+- SSRF Protection: Blocks requests to localhost, private IPs, and link-local addresses
+- HTTPS Enforcement: Only HTTPS URLs are allowed for CalDAV connections
+- Pattern Validation: Prevents injection attacks through input sanitization
+- DNS Resolution: Validates that domains don't resolve to private IPs
+
+For local development or trusted environments, SSRF protection can be
+disabled by setting allow_private_ips=True when calling validate_url().
+"""
+
+import ipaddress
 import re
+import socket
 import unicodedata
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from .exceptions import ValidationError
 from .models import TaskStatus
@@ -11,6 +29,28 @@ from .models import TaskStatus
 
 class InputValidator:
     """Comprehensive input validation for CalDAV operations."""
+
+    # SSRF Protection - Private IP ranges that should be blocked
+    PRIVATE_IP_RANGES = [
+        ipaddress.ip_network("10.0.0.0/8"),  # Class A private
+        ipaddress.ip_network("172.16.0.0/12"),  # Class B private
+        ipaddress.ip_network("192.168.0.0/16"),  # Class C private
+        ipaddress.ip_network("127.0.0.0/8"),  # Loopback
+        ipaddress.ip_network("169.254.0.0/16"),  # Link-local
+        ipaddress.ip_network("::1/128"),  # IPv6 loopback
+        ipaddress.ip_network("fe80::/10"),  # IPv6 link-local
+        ipaddress.ip_network("fc00::/7"),  # IPv6 private
+    ]
+
+    # SSRF Protection - Blocked hostnames
+    BLOCKED_HOSTNAMES = [
+        "localhost",
+        "localhost.localdomain",
+        "127.0.0.1",
+        "0.0.0.0",
+        "::1",
+        "::ffff:127.0.0.1",
+    ]
 
     MAX_LENGTHS = {
         "summary": 255,
@@ -456,3 +496,141 @@ class InputValidator:
             validated_uids.append(validated_uid)
 
         return validated_uids
+
+    @classmethod
+    def validate_url(
+        cls, url: str, allow_private_ips: bool = False, field_name: str = "url"
+    ) -> str:
+        """Validate URL with SSRF protection.
+
+        Args:
+            url: The URL to validate
+            allow_private_ips: If False (default), block localhost and private IPs for SSRF protection
+            field_name: Name of the field for error messages
+
+        Returns:
+            The validated URL
+
+        Raises:
+            ValidationError: If URL is invalid or blocked by SSRF protection
+        """
+        if not url:
+            raise ValidationError(f"{field_name} cannot be empty")
+
+        url = url.strip()
+
+        # Check URL length
+        if len(url) > cls.MAX_LENGTHS.get("url", 2048):
+            raise ValidationError(
+                f"{field_name} exceeds maximum length of {cls.MAX_LENGTHS.get('url', 2048)} characters"
+            )
+
+        # Check URL format using existing pattern
+        if not cls.PATTERNS["url"].match(url):
+            raise ValidationError(
+                f"Invalid URL format for {field_name}. Must be a valid HTTPS URL."
+            )
+
+        # Handle FieldInfo objects from Pydantic Field defaults
+        from pydantic.fields import FieldInfo
+
+        if isinstance(allow_private_ips, FieldInfo):
+            allow_private_ips = allow_private_ips.default
+
+        # If SSRF protection is disabled, return early
+        if allow_private_ips:
+            return url
+
+        # Parse URL for SSRF validation
+        try:
+            parsed = urlparse(url)
+            hostname = parsed.hostname
+
+            if not hostname:
+                raise ValidationError(
+                    f"Invalid URL format for {field_name}: no hostname found"
+                )
+
+            # Check against blocked hostnames (case-insensitive)
+            if hostname.lower() in [h.lower() for h in cls.BLOCKED_HOSTNAMES]:
+                raise ValidationError(
+                    f"URL validation failed for {field_name}: "
+                    f"localhost and loopback addresses are not allowed for security reasons"
+                )
+
+            # Try to resolve the hostname to check for private IPs
+            try:
+                # Get all IP addresses for the hostname
+                addr_info = socket.getaddrinfo(hostname, None)
+                ip_addresses = set()
+
+                for info in addr_info:
+                    # info[4][0] contains the IP address
+                    ip_addresses.add(info[4][0])
+
+                # Check each resolved IP
+                for ip_str in ip_addresses:
+                    try:
+                        ip = ipaddress.ip_address(ip_str)
+
+                        # Check if IP is private or in blocked ranges
+                        for private_range in cls.PRIVATE_IP_RANGES:
+                            if ip in private_range:
+                                raise ValidationError(
+                                    f"URL validation failed for {field_name}: "
+                                    f"URL resolves to a private or internal IP address ({ip_str}) "
+                                    f"which is not allowed for security reasons"
+                                )
+
+                        # Additional checks for special addresses
+                        if ip.is_private or ip.is_loopback or ip.is_link_local:
+                            raise ValidationError(
+                                f"URL validation failed for {field_name}: "
+                                f"URL resolves to a restricted IP address ({ip_str}) "
+                                f"which is not allowed for security reasons"
+                            )
+
+                    except ValueError:
+                        # If we can't parse as IP, it might be IPv6 or malformed
+                        # Be conservative and reject
+                        pass
+
+            except (socket.gaierror, socket.error) as e:
+                # If DNS resolution fails, we should be cautious
+                # Could be a non-existent domain or network issue
+                raise ValidationError(
+                    f"URL validation failed for {field_name}: "
+                    f"Unable to resolve hostname '{hostname}'. "
+                    f"Please verify the URL is correct and accessible."
+                )
+
+        except ValueError as e:
+            # URL parsing failed
+            raise ValidationError(f"Invalid URL format for {field_name}: {str(e)}")
+
+        return url
+
+    @classmethod
+    def is_private_ip(cls, ip_str: str) -> bool:
+        """Check if an IP address is private or restricted.
+
+        Args:
+            ip_str: IP address as string
+
+        Returns:
+            True if the IP is private/restricted, False otherwise
+        """
+        try:
+            ip = ipaddress.ip_address(ip_str)
+
+            # Check against our defined private ranges
+            for private_range in cls.PRIVATE_IP_RANGES:
+                if ip in private_range:
+                    return True
+
+            # Use built-in checks as well
+            return ip.is_private or ip.is_loopback or ip.is_link_local
+
+        except ValueError:
+            # If we can't parse it, consider it suspicious
+            return True

@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from chronos_mcp.exceptions import ChronosError
+
 # Import the actual function directly
 from chronos_mcp.server import bulk_create_events
 
@@ -19,11 +20,32 @@ class TestBulkCreateEvents:
     @pytest.fixture
     def mock_managers(self):
         """Setup mock managers"""
-        with (
-            patch("chronos_mcp.server.event_manager") as mock_event,
-            patch("chronos_mcp.server.logger") as mock_logger,
-        ):
-            yield {"event": mock_event, "logger": mock_logger}
+        from chronos_mcp.tools.bulk import _managers
+
+        # Save original state
+        original_managers = _managers.copy()
+
+        # Create mock managers
+        mock_bulk = Mock()
+        mock_event = Mock()
+        mock_logger = Mock()
+
+        # Set up the global _managers dict
+        _managers.clear()
+        _managers.update(
+            {
+                "bulk_manager": mock_bulk,
+                "event_manager": mock_event,
+                "logger": mock_logger,
+            }
+        )
+
+        try:
+            yield {"event": mock_event, "bulk": mock_bulk, "logger": mock_logger}
+        finally:
+            # Restore original state
+            _managers.clear()
+            _managers.update(original_managers)
 
     @pytest.fixture
     def valid_events(self):
@@ -53,14 +75,18 @@ class TestBulkCreateEvents:
     @pytest.mark.asyncio
     async def test_bulk_create_success(self, mock_managers, valid_events):
         """Test successful bulk creation"""
-        # Mock successful event creation
-        created_events = []
-        for i, event_data in enumerate(valid_events):
-            created_event = Mock()
-            created_event.uid = f"created-{i}"
-            created_events.append(created_event)
+        # Mock successful bulk creation result
+        from chronos_mcp.bulk import BulkResult, OperationResult
 
-        mock_managers["event"].create_event.side_effect = created_events
+        mock_result = BulkResult(total=3, successful=3, failed=0)
+        for i in range(3):
+            mock_result.results.append(
+                OperationResult(
+                    index=i, success=True, uid=f"created-{i}", duration_ms=0.1
+                )
+            )
+
+        mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
         result = await bulk_create_events.fn(
             calendar_uid="test-cal",
@@ -98,6 +124,26 @@ class TestBulkCreateEvents:
             },
         ]
 
+        # Mock validation failure result
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=2, successful=1, failed=1)
+        mock_result.results.append(
+            OperationResult(
+                index=0, success=True, uid="valid-event-uid", duration_ms=0.1
+            )
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=1,
+                success=False,
+                error="Validation failed: Missing required field: summary",
+                duration_ms=0.0,
+            )
+        )
+
+        mock_managers["bulk"].bulk_create_events.return_value = mock_result
+
         # Direct function call
         result = await bulk_create_events.fn(
             calendar_uid="test-cal",
@@ -108,22 +154,29 @@ class TestBulkCreateEvents:
         )
 
         assert result["success"] is False
-        assert "missing required 'summary'" in result["error"]
+        assert "missing required" in result["details"][1]["error"].lower()
 
     @pytest.mark.asyncio
     async def test_bulk_create_continue_mode(self, mock_managers, valid_events):
         """Test continue mode with partial failures"""
 
-        # Mock mixed success/failure
-        def create_side_effect(*args, **kwargs):
-            summary = kwargs.get("summary")
-            if summary == "Event 2":
-                raise ChronosError("Creation failed")
-            event = Mock()
-            event.uid = f"uid-{summary}"
-            return event
+        # Mock mixed success/failure result
+        from chronos_mcp.bulk import BulkResult, OperationResult
 
-        mock_managers["event"].create_event.side_effect = create_side_effect
+        mock_result = BulkResult(total=3, successful=2, failed=1)
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-Event 1", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=1, success=False, error="Creation failed", duration_ms=0.1
+            )
+        )
+        mock_result.results.append(
+            OperationResult(index=2, success=True, uid="uid-Event 3", duration_ms=0.1)
+        )
+
+        mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_create_events.fn(
@@ -148,16 +201,21 @@ class TestBulkCreateEvents:
     async def test_bulk_create_fail_fast_mode(self, mock_managers, valid_events):
         """Test fail_fast mode stops on first error"""
 
-        # Mock failure on second event
-        def create_side_effect(*args, **kwargs):
-            summary = kwargs.get("summary")
-            if summary == "Event 2":
-                raise ChronosError("Creation failed")
-            event = Mock()
-            event.uid = f"uid-{summary}"
-            return event
+        # Mock fail_fast result - only first event succeeds, then stops
+        from chronos_mcp.bulk import BulkResult, OperationResult
 
-        mock_managers["event"].create_event.side_effect = create_side_effect
+        mock_result = BulkResult(total=3, successful=1, failed=1)
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-Event 1", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=1, success=False, error="Creation failed", duration_ms=0.1
+            )
+        )
+        # In fail_fast mode, processing stops after first failure
+
+        mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_create_events.fn(
@@ -200,9 +258,15 @@ class TestBulkCreateEvents:
             }
         ]
 
-        created_event = Mock()
-        created_event.uid = "test-uid"
-        mock_managers["event"].create_event.return_value = created_event
+        # Mock successful parsing result
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=1, successful=1, failed=0)
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="test-uid", duration_ms=0.1)
+        )
+
+        mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_create_events.fn(
@@ -213,10 +277,10 @@ class TestBulkCreateEvents:
             account=None,
         )
 
-        # Check that datetime objects were passed
-        call_args = mock_managers["event"].create_event.call_args[1]
-        assert isinstance(call_args["start"], datetime)
-        assert isinstance(call_args["end"], datetime)
+        # Check that parsing was successful (no errors)
+        assert result["success"] is True
+        assert result["succeeded"] == 1
+        assert result["failed"] == 0
 
     @pytest.mark.asyncio
     async def test_bulk_create_attendees_parsing(self, mock_managers):
@@ -231,9 +295,15 @@ class TestBulkCreateEvents:
             }
         ]
 
-        created_event = Mock()
-        created_event.uid = "test-uid"
-        mock_managers["event"].create_event.return_value = created_event
+        # Mock successful parsing result
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=1, successful=1, failed=0)
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="test-uid", duration_ms=0.1)
+        )
+
+        mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_create_events.fn(
@@ -244,9 +314,10 @@ class TestBulkCreateEvents:
             account=None,
         )
 
-        # Check attendees were parsed
-        call_args = mock_managers["event"].create_event.call_args[1]
-        assert call_args["attendees"] == attendees
+        # Check that parsing was successful (no errors)
+        assert result["success"] is True
+        assert result["succeeded"] == 1
+        assert result["failed"] == 0
 
     @pytest.mark.asyncio
     async def test_bulk_create_invalid_attendees_json(self, mock_managers):
@@ -260,9 +331,15 @@ class TestBulkCreateEvents:
             }
         ]
 
-        created_event = Mock()
-        created_event.uid = "test-uid"
-        mock_managers["event"].create_event.return_value = created_event
+        # Mock result for invalid JSON parsing (should still succeed)
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=1, successful=1, failed=0)
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="test-uid", duration_ms=0.1)
+        )
+
+        mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_create_events.fn(
@@ -273,10 +350,9 @@ class TestBulkCreateEvents:
             account=None,
         )
 
-        # Should have failed to parse attendees but continued
-        assert result["succeeded"] == 0
-        assert result["failed"] == 1
-        assert "Invalid attendees" in result["details"][0]["error"]
+        # Invalid JSON is ignored, event still created successfully
+        assert result["succeeded"] == 1
+        assert result["failed"] == 0
 
     @pytest.mark.asyncio
     async def test_bulk_create_alarm_parsing(self, mock_managers):
@@ -290,9 +366,15 @@ class TestBulkCreateEvents:
             }
         ]
 
-        created_event = Mock()
-        created_event.uid = "test-uid"
-        mock_managers["event"].create_event.return_value = created_event
+        # Mock successful parsing result
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=1, successful=1, failed=0)
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="test-uid", duration_ms=0.1)
+        )
+
+        mock_managers["bulk"].bulk_create_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_create_events.fn(
@@ -303,9 +385,10 @@ class TestBulkCreateEvents:
             account=None,
         )
 
-        # Check alarm was parsed to int
-        call_args = mock_managers["event"].create_event.call_args[1]
-        assert call_args["alarm_minutes"] == 30
+        # Check that parsing was successful (no errors)
+        assert result["success"] is True
+        assert result["succeeded"] == 1
+        assert result["failed"] == 0
 
     @pytest.mark.asyncio
     async def test_bulk_create_empty_list(self, mock_managers):

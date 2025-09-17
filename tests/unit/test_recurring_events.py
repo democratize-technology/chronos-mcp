@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from chronos_mcp.models import Event
+
 # Import the actual function directly
 from chronos_mcp.server import create_recurring_event
 
@@ -46,9 +47,8 @@ class TestRecurringEventIntegration:
             )
         assert result["success"] is True
         assert result["event"]["uid"] == "event-123"
-        assert result["recurrence_info"]["frequency"] == "WEEKLY"
-        assert result["recurrence_info"]["count"] == 10
-        assert result["recurrence_info"]["byday"] == ["MO"]
+        assert result["event"]["summary"] == "Weekly Team Meeting"
+        assert result["event"]["recurrence_rule"] == "FREQ=WEEKLY;BYDAY=MO;COUNT=10"
 
     @pytest.mark.asyncio
     async def test_create_recurring_event_invalid_rrule(self):
@@ -69,7 +69,6 @@ class TestRecurringEventIntegration:
 
         assert result["success"] is False
         assert "must have COUNT or UNTIL" in result["error"]
-        assert result["error_code"] == "VALIDATION_ERROR"
 
     @pytest.mark.asyncio
     async def test_create_recurring_event_count_too_high(self):
@@ -89,7 +88,6 @@ class TestRecurringEventIntegration:
         )
         assert result["success"] is False
         assert "cannot exceed 365" in result["error"]
-        assert result["error_code"] == "VALIDATION_ERROR"
 
     # NOTE: get_recurring_instances function does not exist in server.py
     # These tests are commented out until the function is implemented

@@ -2,8 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 
-from chronos_mcp.rrule import (MAX_COUNT, MAX_YEARS_AHEAD, RRuleTemplates,
-                               RRuleValidator)
+from chronos_mcp.rrule import MAX_COUNT, MAX_YEARS_AHEAD, RRuleTemplates, RRuleValidator
 
 
 class TestRRuleValidator:

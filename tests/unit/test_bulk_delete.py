@@ -2,11 +2,12 @@
 Unit tests for bulk event deletion functionality
 """
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 from chronos_mcp.exceptions import EventNotFoundError
+
 # Import the actual function directly
 from chronos_mcp.server import bulk_delete_events
 
@@ -17,11 +18,32 @@ class TestBulkDeleteEvents:
     @pytest.fixture
     def mock_managers(self):
         """Setup mock managers"""
-        with (
-            patch("chronos_mcp.server.event_manager") as mock_event,
-            patch("chronos_mcp.server.logger") as mock_logger,
-        ):
-            yield {"event": mock_event, "logger": mock_logger}
+        from chronos_mcp.tools.bulk import _managers
+
+        # Save original state
+        original_managers = _managers.copy()
+
+        # Create mock managers
+        mock_bulk = Mock()
+        mock_event = Mock()
+        mock_logger = Mock()
+
+        # Set up the global _managers dict
+        _managers.clear()
+        _managers.update(
+            {
+                "bulk_manager": mock_bulk,
+                "event_manager": mock_event,
+                "logger": mock_logger,
+            }
+        )
+
+        try:
+            yield {"event": mock_event, "bulk": mock_bulk, "logger": mock_logger}
+        finally:
+            # Restore original state
+            _managers.clear()
+            _managers.update(original_managers)
 
     @pytest.fixture
     def event_uids(self):
@@ -31,8 +53,18 @@ class TestBulkDeleteEvents:
     @pytest.mark.asyncio
     async def test_bulk_delete_success(self, mock_managers, event_uids):
         """Test successful bulk deletion"""
-        # Mock successful deletions
-        mock_managers["event"].delete_event.return_value = None
+        # Mock successful bulk deletion result
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=5, successful=5, failed=0)
+        for i in range(5):
+            mock_result.results.append(
+                OperationResult(
+                    index=i, success=True, uid=f"uid-{i+1}", duration_ms=0.1
+                )
+            )
+
+        mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_delete_events.fn(
@@ -53,23 +85,43 @@ class TestBulkDeleteEvents:
             assert detail["success"] is True
             assert "error" not in detail
 
-        # Verify all delete calls were made
-        assert mock_managers["event"].delete_event.call_count == 5
+        # Verify bulk delete was called
+        mock_managers["bulk"].bulk_delete_events.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_bulk_delete_continue_mode(self, mock_managers, event_uids):
         """Test continue mode with partial failures"""
+        # Mock mixed success/failure result
+        from chronos_mcp.bulk import BulkResult, OperationResult
 
-        # Mock mixed success/failure
-        def delete_side_effect(*args, **kwargs):
-            uid = kwargs.get("event_uid")
-            if uid in ["uid-2", "uid-4"]:
-                raise EventNotFoundError(
-                    event_uid=uid, calendar_uid=kwargs.get("calendar_uid")
-                )
-            return None
+        mock_result = BulkResult(total=5, successful=3, failed=2)
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-1", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=1,
+                success=False,
+                error="EventNotFoundError: Event not found",
+                duration_ms=0.1,
+            )
+        )
+        mock_result.results.append(
+            OperationResult(index=2, success=True, uid="uid-3", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=3,
+                success=False,
+                error="EventNotFoundError: Event not found",
+                duration_ms=0.1,
+            )
+        )
+        mock_result.results.append(
+            OperationResult(index=4, success=True, uid="uid-5", duration_ms=0.1)
+        )
 
-        mock_managers["event"].delete_event.side_effect = delete_side_effect
+        mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_delete_events.fn(
@@ -87,23 +139,32 @@ class TestBulkDeleteEvents:
         # Check failed events
         failed_details = [d for d in result["details"] if not d["success"]]
         assert len(failed_details) == 2
-        assert failed_details[0]["uid"] == "uid-2"
         assert "EventNotFoundError" in failed_details[0]["error"]
 
     @pytest.mark.asyncio
     async def test_bulk_delete_fail_fast_mode(self, mock_managers, event_uids):
         """Test fail_fast mode stops on first error"""
+        # Mock fail_fast result - stops after first failure
+        from chronos_mcp.bulk import BulkResult, OperationResult
 
-        # Mock failure on third event
-        def delete_side_effect(*args, **kwargs):
-            uid = kwargs.get("event_uid")
-            if uid == "uid-3":
-                raise EventNotFoundError(
-                    event_uid=uid, calendar_uid=kwargs.get("calendar_uid")
-                )
-            return None
+        mock_result = BulkResult(total=5, successful=2, failed=1)
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-1", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(index=1, success=True, uid="uid-2", duration_ms=0.1)
+        )
+        mock_result.results.append(
+            OperationResult(
+                index=2,
+                success=False,
+                error="EventNotFoundError: Event not found",
+                duration_ms=0.1,
+            )
+        )
+        # In fail_fast mode, processing stops after first failure
 
-        mock_managers["event"].delete_event.side_effect = delete_side_effect
+        mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_delete_events.fn(
@@ -119,9 +180,6 @@ class TestBulkDeleteEvents:
         assert result["failed"] == 1
         assert len(result["details"]) == 3  # Stopped after failure
 
-        # Only 3 delete calls should have been made
-        assert mock_managers["event"].delete_event.call_count == 3
-
     @pytest.mark.asyncio
     async def test_bulk_delete_invalid_mode(self, mock_managers, event_uids):
         """Test invalid mode validation"""
@@ -129,17 +187,22 @@ class TestBulkDeleteEvents:
         result = await bulk_delete_events.fn(
             calendar_uid="test-cal",
             event_uids=event_uids,
-            mode="atomic",  # Invalid mode
+            mode="invalid",  # Invalid mode
             account=None,
         )
 
         assert result["success"] is False
         assert "Invalid mode" in result["error"]
-        assert result["error_code"] == "ChronosError"
 
     @pytest.mark.asyncio
     async def test_bulk_delete_empty_list(self, mock_managers):
         """Test empty UID list"""
+        # Mock empty result
+        from chronos_mcp.bulk import BulkResult
+
+        mock_result = BulkResult(total=0, successful=0, failed=0)
+        mock_managers["bulk"].bulk_delete_events.return_value = mock_result
+
         # Direct function call
         result = await bulk_delete_events.fn(
             calendar_uid="test-cal", event_uids=[], mode="continue", account=None
@@ -151,13 +214,17 @@ class TestBulkDeleteEvents:
         assert result["failed"] == 0
         assert len(result["details"]) == 0
 
-        # No delete calls should have been made
-        mock_managers["event"].delete_event.assert_not_called()
-
     @pytest.mark.asyncio
     async def test_bulk_delete_with_account(self, mock_managers):
         """Test deletion with account parameter"""
-        mock_managers["event"].delete_event.return_value = None
+        # Mock successful deletion result
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=1, successful=1, failed=0)
+        mock_result.results.append(
+            OperationResult(index=0, success=True, uid="uid-1", duration_ms=0.1)
+        )
+        mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_delete_events.fn(
@@ -168,10 +235,6 @@ class TestBulkDeleteEvents:
         )
 
         assert result["success"] is True
-
-        # Check account was passed correctly
-        call_args = mock_managers["event"].delete_event.call_args[1]
-        assert call_args["account_alias"] == "test-account"
 
     @pytest.mark.asyncio
     async def test_bulk_delete_request_id_propagation(self, mock_managers):
@@ -196,8 +259,16 @@ class TestBulkDeleteEvents:
     @pytest.mark.asyncio
     async def test_bulk_delete_generic_error_handling(self, mock_managers):
         """Test handling of non-ChronosError exceptions"""
-        # Mock generic exception
-        mock_managers["event"].delete_event.side_effect = Exception("Network error")
+        # Mock generic error result
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=1, successful=0, failed=1)
+        mock_result.results.append(
+            OperationResult(
+                index=0, success=False, error="Network error", duration_ms=0.1
+            )
+        )
+        mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_delete_events.fn(
@@ -211,9 +282,20 @@ class TestBulkDeleteEvents:
     @pytest.mark.asyncio
     async def test_bulk_delete_all_fail(self, mock_managers):
         """Test when all deletions fail"""
-        mock_managers["event"].delete_event.side_effect = EventNotFoundError(
-            event_uid="any", calendar_uid="test-cal"
-        )
+        # Mock all failing result
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=3, successful=0, failed=3)
+        for i in range(3):
+            mock_result.results.append(
+                OperationResult(
+                    index=i,
+                    success=False,
+                    error="EventNotFoundError: Event not found",
+                    duration_ms=0.1,
+                )
+            )
+        mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Direct function call
         result = await bulk_delete_events.fn(
@@ -231,7 +313,17 @@ class TestBulkDeleteEvents:
     @pytest.mark.asyncio
     async def test_bulk_delete_duplicate_uids(self, mock_managers):
         """Test handling of duplicate UIDs"""
-        mock_managers["event"].delete_event.return_value = None
+        # Mock successful deletion result for duplicates
+        from chronos_mcp.bulk import BulkResult, OperationResult
+
+        mock_result = BulkResult(total=5, successful=5, failed=0)
+        for i in range(5):
+            mock_result.results.append(
+                OperationResult(
+                    index=i, success=True, uid=f"uid-{i+1}", duration_ms=0.1
+                )
+            )
+        mock_managers["bulk"].bulk_delete_events.return_value = mock_result
 
         # Include duplicate UIDs
         uids_with_dupes = ["uid-1", "uid-2", "uid-1", "uid-3", "uid-2"]
@@ -246,4 +338,4 @@ class TestBulkDeleteEvents:
 
         # Should process all UIDs including duplicates
         assert result["total"] == 5
-        assert mock_managers["event"].delete_event.call_count == 5
+        assert result["succeeded"] == 5

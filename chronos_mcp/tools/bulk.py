@@ -10,6 +10,7 @@ from pydantic import Field
 from ..bulk import BulkOperationMode, BulkOptions
 from ..exceptions import ChronosError, ErrorSanitizer, ValidationError
 from ..logging_config import setup_logging
+from ..rate_limiter import rate_limit
 from ..validation import InputValidator
 from .base import create_success_response, handle_tool_errors
 
@@ -68,6 +69,8 @@ def _ensure_managers_initialized():
 
 
 # Bulk tool functions - defined as standalone functions for importability
+@handle_tool_errors
+@rate_limit("bulk")
 async def bulk_create_events(
     calendar_uid: str = Field(..., description="Calendar UID"),
     events: List[Dict[str, Any]] = Field(
@@ -78,10 +81,9 @@ async def bulk_create_events(
         True, description="Validate events before creation"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create multiple events in bulk"""
-    request_id = str(uuid.uuid4())
-
     # Ensure managers are available for backwards compatibility with tests
     _ensure_managers_initialized()
 
@@ -227,6 +229,7 @@ async def bulk_create_events(
 
 
 @handle_tool_errors
+@rate_limit("bulk")
 async def bulk_delete_events(
     calendar_uid: str = Field(..., description="Calendar UID"),
     event_uids: List[str] = Field(..., description="List of event UIDs to delete"),
@@ -285,6 +288,7 @@ async def bulk_delete_events(
 
 
 @handle_tool_errors
+@rate_limit("bulk")
 async def bulk_create_tasks(
     calendar_uid: str = Field(..., description="Calendar UID"),
     tasks_json: str = Field(..., description="JSON array of task data"),
@@ -353,6 +357,7 @@ async def bulk_create_tasks(
 
 
 @handle_tool_errors
+@rate_limit("bulk")
 async def bulk_delete_tasks(
     calendar_uid: str = Field(..., description="Calendar UID"),
     task_uids: List[str] = Field(..., description="List of task UIDs to delete"),
@@ -403,6 +408,7 @@ async def bulk_delete_tasks(
 
 
 @handle_tool_errors
+@rate_limit("bulk")
 async def bulk_create_journals(
     calendar_uid: str = Field(..., description="Calendar UID"),
     journals_json: str = Field(..., description="JSON array of journal data"),
@@ -471,6 +477,7 @@ async def bulk_create_journals(
 
 
 @handle_tool_errors
+@rate_limit("bulk")
 async def bulk_delete_journals(
     calendar_uid: str = Field(..., description="Calendar UID"),
     journal_uids: List[str] = Field(..., description="List of journal UIDs to delete"),

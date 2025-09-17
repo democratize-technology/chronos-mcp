@@ -100,11 +100,12 @@ class TestUrlValidationSecurity:
             result = validator.PATTERNS["url"].match(url)
             # This is acceptable - the URL format is valid, but content filtering should catch it
 
-    def test_localhost_and_private_ips_allowed(self):
-        """Test that localhost and private IPs are allowed (for legitimate use)"""
+    def test_localhost_and_private_ips_pattern_matching(self):
+        """Test that localhost and private IPs match the URL pattern (but may be blocked by validate_url)"""
         validator = InputValidator()
 
-        # These should be allowed for legitimate CalDAV servers
+        # These match the URL pattern format (for backward compatibility)
+        # but are now blocked by default in validate_url() for SSRF protection
         local_urls = [
             "https://localhost:8443/caldav",
             "https://127.0.0.1:8443/caldav",
@@ -114,9 +115,18 @@ class TestUrlValidationSecurity:
         ]
 
         for url in local_urls:
+            # Pattern still matches for backward compatibility
             assert validator.PATTERNS["url"].match(
                 url
-            ), f"Local/private URL should be allowed: {url}"
+            ), f"Local/private URL pattern should match: {url}"
+
+            # But validate_url blocks them by default (SSRF protection)
+            with pytest.raises(ValidationError):
+                validator.validate_url(url)
+
+            # Unless explicitly allowed
+            result = validator.validate_url(url, allow_private_ips=True)
+            assert result == url
 
     def test_url_with_unusual_ports(self):
         """Test URLs with unusual but valid ports"""

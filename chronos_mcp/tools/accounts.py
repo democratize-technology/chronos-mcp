@@ -6,9 +6,13 @@ from typing import Any, Dict, Optional
 
 from pydantic import Field
 
-from ..exceptions import (AccountAlreadyExistsError, AccountNotFoundError,
-                          ValidationError)
+from ..exceptions import (
+    AccountAlreadyExistsError,
+    AccountNotFoundError,
+    ValidationError,
+)
 from ..models import Account
+from ..rate_limiter import rate_limit
 from ..validation import InputValidator
 from .base import create_success_response, handle_tool_errors
 
@@ -18,6 +22,7 @@ _managers = {}
 
 # Account tool functions - defined as standalone functions for importability
 @handle_tool_errors
+@rate_limit("accounts")
 async def add_account(
     alias: str = Field(..., description="Unique alias for the account"),
     url: str = Field(..., description="CalDAV server URL"),
@@ -26,12 +31,23 @@ async def add_account(
     display_name: Optional[str] = Field(
         None, description="Display name for the account"
     ),
+    allow_local: bool = Field(
+        False,
+        description="Allow localhost/private IPs (WARNING: only for development/testing)",
+    ),
     request_id: str = None,
 ) -> Dict[str, Any]:
-    """Add a new CalDAV account to Chronos"""
+    """Add a new CalDAV account to Chronos
+
+    By default, this function blocks URLs pointing to localhost and private IP
+    addresses for security (SSRF protection). For local development or testing,
+    set allow_local=True to explicitly allow these addresses.
+    """
     # Validate inputs before creating account
-    if not InputValidator.PATTERNS["url"].match(url):
-        raise ValidationError("Invalid URL format. Must be HTTPS URL.")
+    # SSRF protection is enabled by default (allow_private_ips defaults to False)
+    url = InputValidator.validate_url(
+        url, allow_private_ips=allow_local, field_name="url"
+    )
 
     alias = InputValidator.validate_text_field(alias, "alias", required=True)
     username = InputValidator.validate_text_field(username, "username", required=True)
@@ -61,6 +77,7 @@ async def add_account(
     )
 
 
+@rate_limit("accounts")
 async def list_accounts() -> Dict[str, Any]:
     """List all configured CalDAV accounts"""
     accounts = _managers["config_manager"].list_accounts()
@@ -82,6 +99,7 @@ async def list_accounts() -> Dict[str, Any]:
 
 
 @handle_tool_errors
+@rate_limit("accounts")
 async def remove_account(
     alias: str = Field(..., description="Account alias to remove"),
     request_id: str = None,
@@ -99,6 +117,7 @@ async def remove_account(
     )
 
 
+@rate_limit("accounts")
 async def test_account(
     alias: str = Field(..., description="Account alias to test"),
 ) -> Dict[str, Any]:

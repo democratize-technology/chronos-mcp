@@ -167,8 +167,9 @@ class BulkOperationManager:
         else:
             created_uids = []
             current_parallel = options.max_parallel
+            batch_start = 0
 
-            for batch_start in range(0, len(events), current_parallel):
+            while batch_start < len(events):
                 # Adaptive scaling - adjust parallelism based on performance
                 if options.adaptive_scaling and batch_start > 0:
                     recent_perf = self._get_recent_performance("create_event")
@@ -209,6 +210,9 @@ class BulkOperationManager:
                     options.mode == BulkOperationMode.FAIL_FAST and result.failed > 0
                 ) or (options.mode == BulkOperationMode.ATOMIC and result.failed > 0):
                     break
+
+                # Move to next batch
+                batch_start = batch_end
 
         result.duration_ms = (time.time() - start_time) * 1000
         return result
