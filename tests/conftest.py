@@ -12,6 +12,14 @@ import pytz
 
 from chronos_mcp.config import ConfigManager
 from chronos_mcp.models import Account, Calendar, Event
+from chronos_mcp.rate_limiter import disable_rate_limiting
+
+
+@pytest.fixture(autouse=True)
+def disable_rate_limiting_for_tests():
+    """Automatically disable rate limiting for all tests"""
+    disable_rate_limiting()
+    yield
 
 
 @pytest.fixture

@@ -10,6 +10,7 @@ from pydantic import Field
 from ..exceptions import (CalendarNotFoundError, ChronosError, ErrorSanitizer,
                           EventNotFoundError, ValidationError)
 from ..logging_config import setup_logging
+from ..rate_limiter import rate_limit
 from ..utils import parse_datetime
 from ..validation import InputValidator
 from .base import create_success_response, handle_tool_errors
@@ -21,6 +22,8 @@ _managers = {}
 
 
 # Journal tool functions - defined as standalone functions for importability
+@handle_tool_errors
+@rate_limit("journals")
 async def create_journal(
     calendar_uid: str = Field(..., description="Calendar UID"),
     summary: str = Field(..., description="Journal entry title/summary"),
@@ -114,6 +117,8 @@ async def create_journal(
         }
 
 
+@handle_tool_errors
+@rate_limit("journals")
 async def list_journals(
     calendar_uid: str = Field(..., description="Calendar UID"),
     account: Optional[str] = Field(None, description="Account alias"),
@@ -206,6 +211,8 @@ async def list_journals(
 
 
 @handle_tool_errors
+@handle_tool_errors
+@rate_limit("journals")
 async def update_journal(
     calendar_uid: str = Field(..., description="Calendar UID"),
     journal_uid: str = Field(..., description="Journal UID to update"),
@@ -255,6 +262,8 @@ async def update_journal(
 
 
 @handle_tool_errors
+@handle_tool_errors
+@rate_limit("journals")
 async def delete_journal(
     calendar_uid: str = Field(..., description="Calendar UID"),
     journal_uid: str = Field(..., description="Journal UID to delete"),

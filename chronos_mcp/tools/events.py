@@ -14,6 +14,7 @@ from ..exceptions import (AttendeeValidationError, CalendarNotFoundError,
                           ErrorSanitizer, EventCreationError,
                           EventNotFoundError, ValidationError)
 from ..logging_config import setup_logging
+from ..rate_limiter import rate_limit
 from ..rrule import RRuleValidator
 from ..utils import parse_datetime
 from ..validation import InputValidator
@@ -26,6 +27,8 @@ _managers = {}
 
 
 # Event tool functions - defined as standalone functions for importability
+@handle_tool_errors
+@rate_limit("events")
 async def create_event(
     calendar_uid: str = Field(..., description="Calendar UID"),
     summary: str = Field(..., description="Event title/summary"),
@@ -208,6 +211,8 @@ async def create_event(
         }
 
 
+@handle_tool_errors
+@rate_limit("events")
 async def get_events_range(
     calendar_uid: str = Field(..., description="Calendar UID"),
     start_date: str = Field(..., description="Start date (ISO format)"),
@@ -302,6 +307,8 @@ async def get_events_range(
         }
 
 
+@handle_tool_errors
+@rate_limit("events")
 async def delete_event(
     calendar_uid: str = Field(..., description="Calendar UID"),
     event_uid: str = Field(..., description="Event UID to delete"),
@@ -379,6 +386,8 @@ async def delete_event(
         }
 
 
+@handle_tool_errors
+@rate_limit("events")
 async def update_event(
     calendar_uid: str = Field(..., description="Calendar UID"),
     event_uid: str = Field(..., description="Event UID to update"),
@@ -449,6 +458,8 @@ async def update_event(
         }
 
 
+@handle_tool_errors
+@rate_limit("events")
 async def create_recurring_event(
     calendar_uid: str = Field(..., description="Calendar UID"),
     summary: str = Field(..., description="Event title/summary"),
@@ -522,6 +533,8 @@ async def create_recurring_event(
         }
 
 
+@handle_tool_errors
+@rate_limit("search")
 async def search_events(
     query: str = Field(..., description="Search query"),
     fields: List[str] = Field(

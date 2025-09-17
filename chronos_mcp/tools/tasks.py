@@ -12,6 +12,7 @@ from ..exceptions import (CalendarNotFoundError, ChronosError, ErrorSanitizer,
                           ValidationError)
 from ..logging_config import setup_logging
 from ..models import TaskStatus
+from ..rate_limiter import rate_limit
 from ..utils import parse_datetime
 from ..validation import InputValidator
 from .base import create_success_response, handle_tool_errors
@@ -23,6 +24,8 @@ _managers = {}
 
 
 # Task tool functions - defined as standalone functions for importability
+@handle_tool_errors
+@rate_limit("tasks")
 async def create_task(
     calendar_uid: str = Field(..., description="Calendar UID"),
     summary: str = Field(..., description="Task title/summary"),
@@ -169,6 +172,8 @@ async def create_task(
         }
 
 
+@handle_tool_errors
+@rate_limit("tasks")
 async def list_tasks(
     calendar_uid: str = Field(..., description="Calendar UID"),
     status_filter: Optional[str] = Field(
@@ -266,6 +271,8 @@ async def list_tasks(
 
 
 @handle_tool_errors
+@handle_tool_errors
+@rate_limit("tasks")
 async def update_task(
     calendar_uid: str = Field(..., description="Calendar UID"),
     task_uid: str = Field(..., description="Task UID to update"),
@@ -359,6 +366,8 @@ async def update_task(
 
 
 @handle_tool_errors
+@handle_tool_errors
+@rate_limit("tasks")
 async def delete_task(
     calendar_uid: str = Field(..., description="Calendar UID"),
     task_uid: str = Field(..., description="Task UID to delete"),
