@@ -20,6 +20,7 @@ from ..exceptions import (
     ValidationError,
 )
 from ..logging_config import setup_logging
+from ..rate_limiter import rate_limit
 from ..rrule import RRuleValidator
 from ..utils import parse_datetime
 from ..validation import InputValidator
@@ -32,6 +33,8 @@ _managers = {}
 
 
 # Event tool functions - defined as standalone functions for importability
+@handle_tool_errors
+@rate_limit("events")
 async def create_event(
     calendar_uid: str = Field(..., description="Calendar UID"),
     summary: str = Field(..., description="Event title/summary"),
@@ -55,6 +58,7 @@ async def create_event(
         None, description="List of related component UIDs"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create a new calendar event"""
     request_id = str(uuid.uuid4())
@@ -214,14 +218,16 @@ async def create_event(
         }
 
 
+@handle_tool_errors
+@rate_limit("events")
 async def get_events_range(
     calendar_uid: str = Field(..., description="Calendar UID"),
     start_date: str = Field(..., description="Start date (ISO format)"),
     end_date: str = Field(..., description="End date (ISO format)"),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Get events within a date range"""
-    request_id = str(uuid.uuid4())
 
     try:
         start_dt = parse_datetime(start_date)
@@ -308,13 +314,15 @@ async def get_events_range(
         }
 
 
+@handle_tool_errors
+@rate_limit("events")
 async def delete_event(
     calendar_uid: str = Field(..., description="Calendar UID"),
     event_uid: str = Field(..., description="Event UID to delete"),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Delete a calendar event"""
-    request_id = str(uuid.uuid4())
 
     try:
         _managers["event_manager"].delete_event(
@@ -385,6 +393,8 @@ async def delete_event(
         }
 
 
+@handle_tool_errors
+@rate_limit("events")
 async def update_event(
     calendar_uid: str = Field(..., description="Calendar UID"),
     event_uid: str = Field(..., description="Event UID to update"),
@@ -406,9 +416,9 @@ async def update_event(
         None, description="JSON string of attendees list"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Update an existing calendar event. Only provided fields will be updated."""
-    request_id = str(uuid.uuid4())
 
     try:
         start_dt = parse_datetime(start) if start else None
@@ -455,6 +465,8 @@ async def update_event(
         }
 
 
+@handle_tool_errors
+@rate_limit("events")
 async def create_recurring_event(
     calendar_uid: str = Field(..., description="Calendar UID"),
     summary: str = Field(..., description="Event title/summary"),
@@ -472,9 +484,9 @@ async def create_recurring_event(
         None, description="JSON string of attendees list"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create a recurring event with validation."""
-    request_id = str(uuid.uuid4())
 
     try:
         duration_minutes = int(duration_minutes)
@@ -528,6 +540,8 @@ async def create_recurring_event(
         }
 
 
+@handle_tool_errors
+@rate_limit("search")
 async def search_events(
     query: str = Field(..., description="Search query"),
     fields: List[str] = Field(
@@ -539,9 +553,9 @@ async def search_events(
     calendar_uid: Optional[str] = Field(None, description="Calendar UID to search in"),
     max_results: int = Field(50, description="Maximum number of results"),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Search for events across calendars with advanced filtering"""
-    request_id = str(uuid.uuid4())
 
     try:
         # Validate query length

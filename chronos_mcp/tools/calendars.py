@@ -14,6 +14,7 @@ from ..exceptions import (
     ValidationError,
 )
 from ..logging_config import setup_logging
+from ..rate_limiter import rate_limit
 from ..validation import InputValidator
 from .base import create_success_response, handle_tool_errors
 
@@ -24,6 +25,7 @@ _managers = {}
 
 
 # Calendar tool functions - defined as standalone functions for importability
+@rate_limit("calendars")
 async def list_calendars(
     account: Optional[str] = Field(
         None, description="Account alias (uses default if not specified)"
@@ -49,6 +51,8 @@ async def list_calendars(
     }
 
 
+@handle_tool_errors
+@rate_limit("calendars")
 async def create_calendar(
     name: str = Field(..., description="Calendar name"),
     description: Optional[str] = Field(None, description="Calendar description"),
@@ -92,6 +96,7 @@ async def create_calendar(
 
 
 @handle_tool_errors
+@rate_limit("calendars")
 async def delete_calendar(
     calendar_uid: str = Field(..., description="Calendar UID to delete"),
     account: Optional[str] = Field(

@@ -12,6 +12,7 @@ from ..exceptions import (
     ValidationError,
 )
 from ..models import Account
+from ..rate_limiter import rate_limit
 from ..validation import InputValidator
 from .base import create_success_response, handle_tool_errors
 
@@ -21,6 +22,7 @@ _managers = {}
 
 # Account tool functions - defined as standalone functions for importability
 @handle_tool_errors
+@rate_limit("accounts")
 async def add_account(
     alias: str = Field(..., description="Unique alias for the account"),
     url: str = Field(..., description="CalDAV server URL"),
@@ -76,6 +78,7 @@ async def add_account(
     )
 
 
+@rate_limit("accounts")
 async def list_accounts() -> Dict[str, Any]:
     """List all configured CalDAV accounts"""
     accounts = _managers["config_manager"].list_accounts()
@@ -97,6 +100,7 @@ async def list_accounts() -> Dict[str, Any]:
 
 
 @handle_tool_errors
+@rate_limit("accounts")
 async def remove_account(
     alias: str = Field(..., description="Account alias to remove"),
     request_id: str = None,
@@ -114,6 +118,7 @@ async def remove_account(
     )
 
 
+@rate_limit("accounts")
 async def test_account(
     alias: str = Field(..., description="Account alias to test"),
 ) -> Dict[str, Any]:

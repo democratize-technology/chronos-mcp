@@ -15,6 +15,7 @@ from ..exceptions import (
     ValidationError,
 )
 from ..logging_config import setup_logging
+from ..rate_limiter import rate_limit
 from ..utils import parse_datetime
 from ..validation import InputValidator
 from .base import create_success_response, handle_tool_errors
@@ -26,6 +27,8 @@ _managers = {}
 
 
 # Journal tool functions - defined as standalone functions for importability
+@handle_tool_errors
+@rate_limit("journals")
 async def create_journal(
     calendar_uid: str = Field(..., description="Calendar UID"),
     summary: str = Field(..., description="Journal entry title/summary"),
@@ -37,9 +40,9 @@ async def create_journal(
         None, description="List of related component UIDs"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create a new journal entry"""
-    request_id = str(uuid.uuid4())
 
     try:
         # Validate and sanitize text inputs
@@ -119,15 +122,17 @@ async def create_journal(
         }
 
 
+@handle_tool_errors
+@rate_limit("journals")
 async def list_journals(
     calendar_uid: str = Field(..., description="Calendar UID"),
     account: Optional[str] = Field(None, description="Account alias"),
     limit: Optional[Union[int, str]] = Field(
         50, description="Maximum number of journals to return"
     ),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """List journal entries in a calendar"""
-    request_id = str(uuid.uuid4())
 
     # Handle type conversion for limit parameter
     if limit is not None:
@@ -211,6 +216,7 @@ async def list_journals(
 
 
 @handle_tool_errors
+@rate_limit("journals")
 async def update_journal(
     calendar_uid: str = Field(..., description="Calendar UID"),
     journal_uid: str = Field(..., description="Journal UID to update"),
@@ -260,6 +266,7 @@ async def update_journal(
 
 
 @handle_tool_errors
+@rate_limit("journals")
 async def delete_journal(
     calendar_uid: str = Field(..., description="Calendar UID"),
     journal_uid: str = Field(..., description="Journal UID to delete"),

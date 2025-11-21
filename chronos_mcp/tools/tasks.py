@@ -17,6 +17,7 @@ from ..exceptions import (
 )
 from ..logging_config import setup_logging
 from ..models import TaskStatus
+from ..rate_limiter import rate_limit
 from ..utils import parse_datetime
 from ..validation import InputValidator
 from .base import create_success_response, handle_tool_errors
@@ -28,6 +29,8 @@ _managers = {}
 
 
 # Task tool functions - defined as standalone functions for importability
+@handle_tool_errors
+@rate_limit("tasks")
 async def create_task(
     calendar_uid: str = Field(..., description="Calendar UID"),
     summary: str = Field(..., description="Task title/summary"),
@@ -44,9 +47,9 @@ async def create_task(
         None, description="List of related component UIDs"
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """Create a new task"""
-    request_id = str(uuid.uuid4())
 
     # Handle type conversion for parameters that might come as strings from MCP
     if priority is not None:
@@ -174,6 +177,8 @@ async def create_task(
         }
 
 
+@handle_tool_errors
+@rate_limit("tasks")
 async def list_tasks(
     calendar_uid: str = Field(..., description="Calendar UID"),
     status_filter: Optional[str] = Field(
@@ -181,9 +186,9 @@ async def list_tasks(
         description="Filter by status (NEEDS-ACTION, IN-PROCESS, COMPLETED, CANCELLED)",
     ),
     account: Optional[str] = Field(None, description="Account alias"),
+    request_id: str = None,
 ) -> Dict[str, Any]:
     """List tasks in a calendar"""
-    request_id = str(uuid.uuid4())
 
     try:
         # Parse status filter if provided
@@ -271,6 +276,7 @@ async def list_tasks(
 
 
 @handle_tool_errors
+@rate_limit("tasks")
 async def update_task(
     calendar_uid: str = Field(..., description="Calendar UID"),
     task_uid: str = Field(..., description="Task UID to update"),
@@ -364,6 +370,7 @@ async def update_task(
 
 
 @handle_tool_errors
+@rate_limit("tasks")
 async def delete_task(
     calendar_uid: str = Field(..., description="Calendar UID"),
     task_uid: str = Field(..., description="Task UID to delete"),
