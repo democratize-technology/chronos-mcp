@@ -66,13 +66,6 @@ class EventManager:
             )
 
         try:
-            # Fix all-day event times
-            if all_day:
-                # Ensure start is at midnight
-                start = start.replace(hour=0, minute=0, second=0, microsecond=0)
-                # End should be midnight of the next day (24 hours later)
-                end = start + timedelta(days=1)
-
             # Validate RRULE if provided
             if recurrence_rule:
                 is_valid, error_msg = validate_rrule(recurrence_rule)
@@ -89,8 +82,12 @@ class EventManager:
 
             event.add("uid", event_uid)
             event.add("summary", summary)
-            event.add("dtstart", start)
-            event.add("dtend", end)
+            if all_day:
+                event.add("dtstart", start.date())
+                event.add("dtend", end.date())
+            else:
+                event.add("dtstart", start)
+                event.add("dtend", end)
             event.add("dtstamp", datetime.now(timezone.utc))
 
             if description:
@@ -439,10 +436,16 @@ class EventManager:
                     del existing_event["description"]
 
             if start is not None:
-                existing_event["dtstart"].dt = start
+                if all_day:
+                    existing_event["dtstart"].dt = start.date()
+                else:
+                    existing_event["dtstart"].dt = start
 
             if end is not None:
-                existing_event["dtend"].dt = end
+                if all_day:
+                    existing_event["dtend"].dt = end.date()
+                else:
+                    existing_event["dtend"].dt = end
 
             if location is not None:
                 if location:
