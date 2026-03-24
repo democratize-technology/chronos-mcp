@@ -116,6 +116,20 @@ __all__ = [
     "bulk_delete_journals",
 ]
 
+def main():
+    """Main function to run the MCP server."""
+    logger.info("Starting Chronos MCP Server...")
+
+    try:
+        # Run the server - this blocks and keeps the server alive
+        mcp.run()
+
+    except KeyboardInterrupt:
+        logger.info("Server shutdown requested")
+    except Exception as e:
+        logger.error("Server error: %s", e, exc_info=True)
+        raise
+
 # Main entry point for running the server
 if __name__ == "__main__":
-    mcp.run()
+    main()
