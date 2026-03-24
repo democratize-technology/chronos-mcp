@@ -53,7 +53,7 @@ jobs:
 
     - name: Upload coverage reports
       if: matrix.python-version == '3.11'  # Only upload once, not for every Python version
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         file: ./coverage.xml
         flags: unittests
