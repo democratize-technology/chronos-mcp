@@ -238,15 +238,14 @@ chronos:update_event(
 
 ## Documentation
 
-- [API Reference](docs/api/README.md) - Complete API documentation
+- [Usage](#usage) - Basic tool usage examples
 - [Architecture Guide](docs/ARCHITECTURE.md) - System design and components
 - [RRULE Guide](docs/RRULE_GUIDE.md) - Recurring events documentation
-- [Data Flows](docs/DATA_FLOWS.md) - Request/response patterns
-- [Design Decisions](docs/DESIGN_DECISIONS.md) - Technical choices explained
+- [VTODO/VJOURNAL Guide](docs/VTODO_VJOURNAL_GUIDE.md) - Task and journal entry documentation
 
 ## Known Issues
 
-See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for current limitations and workarounds.
+See [GitHub Issues](https://github.com/democratize-technology/chronos-mcp/issues) for current limitations and workarounds.
 
 ## Changelog
 
