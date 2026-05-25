@@ -48,7 +48,7 @@ dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=7.1.0",
-    "black>=24.0.0",
+    "black>=26.5.1",
     "ruff>=0.5.0",
     "types-python-dateutil",
     "types-icalendar",
