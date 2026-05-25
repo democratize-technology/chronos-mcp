@@ -52,7 +52,7 @@ dev = [
     "ruff>=0.5.0",
     "types-python-dateutil",
     "types-icalendar",
-    "mypy>=1.0.0",
+    "mypy>=2.1.0",
 ]
 secure = [
     "keyring>=24.0.0",
@@ -70,7 +70,7 @@ dev = [
     "radon>=6.0.1",
     "types-python-dateutil",
     "types-icalendar",
-    "mypy>=1.0.0",
+    "mypy>=2.1.0",
 ]
 
 [project.scripts]
