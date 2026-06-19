@@ -79,8 +79,13 @@ class TaskManager:
             task.add("percent-complete", 0)
 
             if related_to:
+                # Emit a typed, one-directional parent link. VTODO hierarchy is
+                # expressed as RELTYPE=PARENT on the child only; the referenced
+                # UID is the child's parent. Without RELTYPE some clients (e.g.
+                # jtx Board) treat the link as bidirectional and show the child
+                # as both a subtask and a parent of the list.
                 for related_uid in related_to:
-                    task.add("related-to", related_uid)
+                    task.add("related-to", related_uid, parameters={"RELTYPE": "PARENT"})
 
             cal.add_component(task)
 
@@ -335,10 +340,14 @@ class TaskManager:
                 if "RELATED-TO" in existing_task:
                     del existing_task["RELATED-TO"]
 
-                # Add new RELATED-TO properties if provided
+                # Add new RELATED-TO properties if provided. Typed as
+                # RELTYPE=PARENT so the link stays one-directional (see
+                # create_task for rationale).
                 if related_to:
                     for related_uid in related_to:
-                        existing_task.add("RELATED-TO", related_uid)
+                        existing_task.add(
+                            "RELATED-TO", related_uid, parameters={"RELTYPE": "PARENT"}
+                        )
 
             # Update last-modified timestamp
             if "LAST-MODIFIED" in existing_task:

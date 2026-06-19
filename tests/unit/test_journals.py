@@ -109,6 +109,24 @@ class TestJournalCRUD:
         assert result.description == "Today was productive"
         mock_calendar.save_journal.assert_called_once()
 
+    def test_create_journal_related_to_stays_untyped(
+        self, journal_manager, mock_calendar, sample_journal_data
+    ):
+        """Journals are not hierarchies: their RELATED-TO must stay untyped.
+
+        Guards against the VTODO RELTYPE=PARENT fix accidentally being applied
+        to journals as well.
+        """
+        journal_manager.calendars.get_calendar.return_value = mock_calendar
+        mock_calendar.save_journal.return_value = Mock()
+
+        with patch("uuid.uuid4", return_value="test-uid-123"):
+            journal_manager.create_journal(**sample_journal_data)
+
+        ical_data = mock_calendar.save_journal.call_args[0][0]
+        assert "RELATED-TO:event-456" in ical_data
+        assert "RELTYPE" not in ical_data
+
     def test_create_journal_fallback_to_save_event(
         self, journal_manager, mock_calendar, sample_journal_data
     ):

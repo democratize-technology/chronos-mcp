@@ -174,6 +174,40 @@ class TestTaskManager:
         assert result.related_to == sample_task_data["related_to"]
 
     @patch("chronos_mcp.tasks.uuid.uuid4")
+    def test_create_task_related_to_emits_reltype_parent(
+        self, mock_uuid, mock_calendar_manager, mock_calendar
+    ):
+        """RELATED-TO on a subtask must be a typed, one-directional PARENT link.
+
+        Regression test: an untyped RELATED-TO is treated as bidirectional by
+        some clients (e.g. jtx Board), making the child appear as both a subtask
+        and a parent. The child must declare RELTYPE=PARENT and nothing must be
+        written to a second component (no reverse link on the parent).
+        """
+        mock_uuid.return_value = Mock()
+        mock_uuid.return_value.__str__ = Mock(return_value="child-task-123")
+
+        mgr = TaskManager(mock_calendar_manager)
+        mock_calendar_manager.get_calendar.return_value = mock_calendar
+        mock_calendar.save_todo.return_value = Mock()
+
+        mgr.create_task(
+            calendar_uid="cal-123",
+            summary="Child Task",
+            related_to=["parent-task-uid"],
+        )
+
+        # Exactly one save, to the single (child) component — no parent mutation.
+        mock_calendar.save_todo.assert_called_once()
+        mock_calendar.save_event.assert_not_called()
+
+        ical_data = mock_calendar.save_todo.call_args[0][0]
+        assert ical_data.count("RELATED-TO") == 1
+        assert "RELATED-TO;RELTYPE=PARENT:parent-task-uid" in ical_data
+        # No untyped RELATED-TO line.
+        assert "RELATED-TO:parent-task-uid" not in ical_data
+
+    @patch("chronos_mcp.tasks.uuid.uuid4")
     def test_create_task_fallback_to_save_event(
         self, mock_uuid, mock_calendar_manager, mock_calendar
     ):
@@ -311,6 +345,29 @@ class TestTaskManager:
         # Verify
         assert result is not None
         mock_caldav_task.save.assert_called_once()
+
+    def test_update_task_related_to_emits_reltype_parent(
+        self, mock_calendar_manager, mock_calendar, mock_caldav_task
+    ):
+        """update_task must also write RELATED-TO as a typed PARENT link."""
+        mgr = TaskManager(mock_calendar_manager)
+        mock_calendar_manager.get_calendar.return_value = mock_calendar
+        mock_calendar.event_by_uid.return_value = mock_caldav_task
+
+        result = mgr.update_task(
+            task_uid="test-task-123",
+            calendar_uid="cal-123",
+            related_to=["parent-task-uid"],
+        )
+
+        assert result is not None
+        mock_caldav_task.save.assert_called_once()
+
+        # The serialized payload that was saved back to the server.
+        saved_ical = mock_caldav_task.data
+        assert saved_ical.count("RELATED-TO") == 1
+        assert "RELATED-TO;RELTYPE=PARENT:parent-task-uid" in saved_ical
+        assert "RELATED-TO:parent-task-uid" not in saved_ical
 
     def test_delete_task_success_event_by_uid(
         self, mock_calendar_manager, mock_calendar, mock_caldav_task
