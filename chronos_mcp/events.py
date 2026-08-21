@@ -480,7 +480,9 @@ class EventManager:
                     existing_event.add_component(alarm)
 
             # Update last-modified timestamp
-            existing_event["last-modified"] = datetime.now(timezone.utc)
+            if "last-modified" in existing_event:
+                del existing_event["last-modified"]
+            existing_event.add("last-modified", datetime.now(timezone.utc))
 
             # Save the updated event
             caldav_event.data = ical.to_ical().decode("utf-8")
