@@ -21,7 +21,13 @@ from .exceptions import (
 )
 from .logging_config import setup_logging
 from .models import Alarm, Attendee, Event
-from .utils import ical_to_datetime, validate_rrule
+from .utils import (
+    ensure_fixed_offset_vtimezone,
+    ical_to_datetime,
+    normalize_datetime_for_storage,
+    resolve_timezone,
+    validate_rrule,
+)
 
 logger = setup_logging()
 
@@ -51,11 +57,25 @@ class EventManager:
         alarm_minutes: Optional[int] = None,
         recurrence_rule: Optional[str] = None,
         related_to: Optional[List[str]] = None,
+        timezone_name: Optional[str] = None,
         account_alias: Optional[str] = None,
         request_id: Optional[str] = None,
     ) -> Optional[Event]:
-        """Create a new event - raises exceptions on failure"""
+        """Create a new event - raises exceptions on failure
+
+        timezone_name: optional IANA name (e.g. 'Europe/Prague'). When given,
+        start/end are localized to that zone and stored with an explicit
+        TZID + VTIMEZONE so non-UTC CalDAV clients display them correctly.
+        Without it, start/end are stored in UTC.
+        """
         request_id = request_id or str(uuid.uuid4())
+
+        try:
+            tz = resolve_timezone(timezone_name)
+        except ValueError as e:
+            raise EventCreationError(summary, str(e), request_id=request_id)
+        start = normalize_datetime_for_storage(start, tz)
+        end = normalize_datetime_for_storage(end, tz)
 
         calendar = self.calendars.get_calendar(
             calendar_uid, account_alias, request_id=request_id
@@ -125,6 +145,8 @@ class EventManager:
                 event.add_component(alarm)
 
             cal.add_component(event)
+            ensure_fixed_offset_vtimezone(cal, tz)
+            cal.add_missing_timezones()
 
             # Save to CalDAV server
             caldav_event = calendar.save_event(cal.to_ical().decode("utf-8"))
@@ -374,14 +396,24 @@ class EventManager:
         attendees: Optional[List[Dict[str, Any]]] = None,
         alarm_minutes: Optional[int] = None,
         recurrence_rule: Optional[str] = None,
+        timezone_name: Optional[str] = None,
         account_alias: Optional[str] = None,
         request_id: Optional[str] = None,
     ) -> Optional[Event]:
         """Update an existing event - raises exceptions on failure
 
         Only provided fields will be updated. Other fields remain unchanged.
+        timezone_name: optional IANA name applied to start/end when they are
+        being updated (see create_event).
         """
         request_id = request_id or str(uuid.uuid4())
+
+        try:
+            tz = resolve_timezone(timezone_name)
+        except ValueError as e:
+            raise EventCreationError(
+                summary or event_uid, str(e), request_id=request_id
+            )
 
         calendar = self.calendars.get_calendar(
             calendar_uid, account_alias, request_id=request_id
@@ -439,13 +471,17 @@ class EventManager:
                 if all_day:
                     existing_event["dtstart"].dt = start.date()
                 else:
-                    existing_event["dtstart"].dt = start
+                    start = normalize_datetime_for_storage(start, tz)
+                    del existing_event["dtstart"]
+                    existing_event.add("dtstart", start)
 
             if end is not None:
                 if all_day:
                     existing_event["dtend"].dt = end.date()
                 else:
-                    existing_event["dtend"].dt = end
+                    end = normalize_datetime_for_storage(end, tz)
+                    del existing_event["dtend"]
+                    existing_event.add("dtend", end)
 
             if location is not None:
                 if location:
@@ -501,6 +537,8 @@ class EventManager:
             existing_event.add("last-modified", datetime.now(timezone.utc))
 
             # Save the updated event
+            ensure_fixed_offset_vtimezone(ical, tz)
+            ical.add_missing_timezones()
             caldav_event.data = ical.to_ical().decode("utf-8")
             caldav_event.save()
             # Parse and return the updated event

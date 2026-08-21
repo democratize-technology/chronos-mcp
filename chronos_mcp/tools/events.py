@@ -54,6 +54,11 @@ async def create_event(
     related_to: Optional[List[str]] = Field(
         None, description="List of related component UIDs"
     ),
+    timezone: Optional[str] = Field(
+        None,
+        description="IANA timezone name (e.g. 'Europe/Prague') or a fixed UTC "
+        "offset (e.g. '+05:30') to store start/end in, as TZID. Omit to store in UTC.",
+    ),
     account: Optional[str] = Field(None, description="Account alias"),
 ) -> Dict[str, Any]:
     """Create a new calendar event"""
@@ -135,6 +140,7 @@ async def create_event(
             recurrence_rule=recurrence_rule,
             attendees=attendees_list,
             related_to=related_to,
+            timezone_name=timezone,
             account_alias=account,
         )
 
@@ -405,6 +411,12 @@ async def update_event(
     attendees_json: Optional[str] = Field(
         None, description="JSON string of attendees list"
     ),
+    timezone: Optional[str] = Field(
+        None,
+        description="IANA timezone name (e.g. 'Europe/Prague') or a fixed UTC "
+        "offset (e.g. '+05:30') applied to start/end when they are being updated, "
+        "as TZID. Omit to store in UTC.",
+    ),
     account: Optional[str] = Field(None, description="Account alias"),
 ) -> Dict[str, Any]:
     """Update an existing calendar event. Only provided fields will be updated."""
@@ -428,6 +440,7 @@ async def update_event(
             attendees=attendees,
             alarm_minutes=alarm_mins,
             recurrence_rule=recurrence_rule,
+            timezone_name=timezone,
             account_alias=account,
             request_id=request_id,
         )
@@ -471,6 +484,11 @@ async def create_recurring_event(
     attendees_json: Optional[str] = Field(
         None, description="JSON string of attendees list"
     ),
+    timezone: Optional[str] = Field(
+        None,
+        description="IANA timezone name (e.g. 'Europe/Prague') or a fixed UTC "
+        "offset (e.g. '+05:30') to store start/end in, as TZID. Omit to store in UTC.",
+    ),
     account: Optional[str] = Field(None, description="Account alias"),
 ) -> Dict[str, Any]:
     """Create a recurring event with validation."""
@@ -503,6 +521,7 @@ async def create_recurring_event(
             alarm_minutes=alarm_mins,
             recurrence_rule=recurrence_rule,
             attendees=attendees_list,
+            timezone_name=timezone,
             account_alias=account,
             request_id=request_id,
         )
