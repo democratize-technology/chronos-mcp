@@ -365,7 +365,7 @@ class TaskManager:
             # Update last-modified timestamp
             if "LAST-MODIFIED" in existing_task:
                 del existing_task["LAST-MODIFIED"]
-            existing_task.add("LAST-MODIFIED", datetime.now(timezone.utc))
+            existing_task.add("LAST-MODIFIED", datetime.now(timezone.utc).replace(microsecond=0))
 
             # Save the updated task
             caldav_task.data = ical.to_ical().decode("utf-8")

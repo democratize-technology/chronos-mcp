@@ -20,7 +20,7 @@ def parse_datetime(dt_str: Union[str, datetime]) -> datetime:
 
     # Try parsing with dateutil
     try:
-        dt = parser.parse(dt_str)
+        dt = parser.parse(dt_str.strip("\"'"))
         # Ensure timezone awareness
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
