@@ -2,6 +2,7 @@
 Unit tests for event management
 """
 
+import re
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, Mock, patch
 
@@ -426,6 +427,45 @@ END:VEVENT"""
         assert "Updated Title" in saved_data
         assert "Updated Description" in saved_data
         assert "Original Location" in saved_data  # Unchanged field
+
+    def test_update_event_last_modified_is_ical_encoded(self, mock_calendar_manager, mock_calendar):
+        """LAST-MODIFIED must serialize as an iCalendar UTC stamp, not a Python repr.
+
+        Regression: assigning a datetime via __setitem__ bypasses icalendar's
+        property encoding and emits "2026-08-18 02:28:05.609518+00:00", which
+        Fastmail rejects with HTTP 403 on every update. Tasks and journals
+        already used the delete-then-add idiom; events did not.
+        """
+
+        mock_calendar_manager.get_calendar.return_value = mock_calendar
+
+        mock_caldav_event = MagicMock()
+
+        cal = iCalendar()
+        event = iEvent()
+        event.add("uid", "evt-lastmod")
+        event.add("summary", "Original Title")
+        event.add("dtstart", datetime.now())
+        event.add("dtend", datetime.now() + timedelta(hours=1))
+        cal.add_component(event)
+
+        mock_caldav_event.data = cal.to_ical().decode("utf-8")
+        mock_calendar.event_by_uid.return_value = mock_caldav_event
+
+        mgr = EventManager(mock_calendar_manager)
+        mgr.update_event(
+            calendar_uid="cal-123",
+            event_uid="evt-lastmod",
+            summary="Updated Title",
+        )
+
+        saved_data = mock_caldav_event.data
+        lastmod = [line for line in saved_data.splitlines() if line.startswith("LAST-MODIFIED")]
+        assert len(lastmod) == 1, f"expected exactly one LAST-MODIFIED, got {lastmod}"
+
+        value = lastmod[0].split(":", 1)[1].strip()
+        # Valid form: 20260818T022805Z — no spaces, no microseconds, trailing Z.
+        assert re.fullmatch(r"\d{8}T\d{6}Z", value), f"malformed LAST-MODIFIED: {value!r}"
 
     def test_update_event_partial_update(self, mock_calendar_manager, mock_calendar):
         """Test updating only specific fields"""

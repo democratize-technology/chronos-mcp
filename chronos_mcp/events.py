@@ -479,8 +479,14 @@ class EventManager:
                     alarm.add("description", existing_event.get("summary", ""))
                     existing_event.add_component(alarm)
 
-            # Update last-modified timestamp
-            existing_event["last-modified"] = datetime.now(timezone.utc)
+            # Update last-modified timestamp.
+            # Use .add() rather than __setitem__: assigning a raw datetime bypasses
+            # icalendar's property encoding and serializes a Python repr
+            # ("2026-08-18 02:28:05.609518+00:00") instead of an iCalendar UTC stamp
+            # ("20260818T022805Z"). Fastmail rejects the malformed property with 403.
+            if "last-modified" in existing_event:
+                del existing_event["last-modified"]
+            existing_event.add("last-modified", datetime.now(timezone.utc))
 
             # Save the updated event
             caldav_event.data = ical.to_ical().decode("utf-8")
