@@ -512,14 +512,21 @@ class InputValidator:
                 "URLs with '@' are not allowed for security reasons."
             )
 
+        # Handle FieldInfo objects from Pydantic Field defaults
+        from pydantic.fields import FieldInfo
+
+        if isinstance(allow_private_ips, FieldInfo):
+            allow_private_ips = allow_private_ips.default
+
         # Use urllib.parse for URL parsing (standard library)
         try:
             parsed = urlparse(url)
             if not parsed.scheme or not parsed.netloc:
                 raise ValidationError(
-                    f"Invalid URL format for {field_name}. Must be a valid HTTPS URL."
+                    f"Invalid URL format for {field_name}. Must be a valid URL."
                 )
-            if parsed.scheme != "https":
+            allowed_schemes = ("http", "https") if allow_private_ips else ("https",)
+            if parsed.scheme not in allowed_schemes:
                 raise ValidationError(
                     f"Invalid URL format for {field_name}. Only HTTPS is allowed for security."
                 )
@@ -532,12 +539,6 @@ class InputValidator:
                     )
         except ValueError as e:
             raise ValidationError(f"Invalid URL format for {field_name}: {str(e)}")
-
-        # Handle FieldInfo objects from Pydantic Field defaults
-        from pydantic.fields import FieldInfo
-
-        if isinstance(allow_private_ips, FieldInfo):
-            allow_private_ips = allow_private_ips.default
 
         # If SSRF protection is disabled, return early
         if allow_private_ips:
